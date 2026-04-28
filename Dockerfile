@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies with Tsinghua PyPI mirror
 COPY backend/pyproject.toml .
+COPY backend/app ./app
 COPY README.md /README.md
 RUN pip install --no-cache-dir --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple \
     && pip install --no-cache-dir -e ".[dev]" -i https://pypi.tuna.tsinghua.edu.cn/simple \
