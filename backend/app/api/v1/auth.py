@@ -10,7 +10,7 @@ Supports:
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from typing import Annotated
+from typing import Annotated, Any
 
 import jwt
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
