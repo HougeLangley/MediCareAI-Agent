@@ -4,12 +4,13 @@ Supports:
 - Patient/Doctor/Admin login & register
 - Guest mode token issuance
 - Role switch with audit logging
+- Platform-aware token issuance (X-Platform header)
 """
 
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,12 +39,31 @@ router = APIRouter()
 settings = get_settings()
 
 
+def _read_platform(request: Request, x_platform: str | None) -> str:
+    """Read platform from header or User-Agent fallback."""
+    if x_platform:
+        return x_platform.strip().lower()
+    # Fallback heuristic based on User-Agent
+    ua = (request.headers.get("User-Agent") or "").lower()
+    if "miniprogram" in ua or "wechat" in ua:
+        return "miniapp"
+    if "android" in ua:
+        return "android"
+    if "iphone" in ua or "ipad" in ua or "ios" in ua:
+        return "ios"
+    return "web"
+
+
 @router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     data: UserRegister,
+    request: Request,
+    x_platform: Annotated[str | None, Header(alias="X-Platform")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> LoginResponse:
     """Register a new user (patient or doctor)."""
+    platform = _read_platform(request, x_platform)
+
     # Check email+role uniqueness
     result = await db.execute(
         select(User).where(User.email == data.email, User.role == data.role)
@@ -70,7 +90,7 @@ async def register(
     await db.commit()
     await db.refresh(user)
 
-    token = create_access_token(user.id)
+    token = create_access_token(user.id, platform=platform)
     return LoginResponse(
         access_token=token,
         token_type="bearer",
@@ -81,10 +101,14 @@ async def register(
 
 @router.post("/login", response_model=LoginResponse)
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
+    x_platform: Annotated[str | None, Header(alias="X-Platform")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> LoginResponse:
     """Authenticate and issue JWT (OAuth2 password flow)."""
+    platform = _read_platform(request, x_platform)
+
     # OAuth2 form uses username field for email
     result = await db.execute(select(User).where(User.email == form_data.username))
     user = result.scalar_one_or_none()
@@ -107,7 +131,7 @@ async def login(
     user.last_login_at = datetime.now(timezone.utc)
     await db.commit()
 
-    token = create_access_token(user.id)
+    token = create_access_token(user.id, platform=platform)
     return LoginResponse(
         access_token=token,
         token_type="bearer",
@@ -119,9 +143,11 @@ async def login(
 @router.post("/guest", response_model=GuestSessionResponse, status_code=status.HTTP_201_CREATED)
 async def create_guest_session(
     request: Request,
+    x_platform: Annotated[str | None, Header(alias="X-Platform")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> GuestSessionResponse:
     """Create a time-limited guest session."""
+    platform = _read_platform(request, x_platform)
     session_token = uuid.uuid4().hex
     fingerprint = request.headers.get("User-Agent", "")[:255] or None
     expires_at = datetime.now(timezone.utc) + timedelta(
@@ -139,7 +165,7 @@ async def create_guest_session(
     await db.refresh(guest)
 
     # Embed token in response — client stores it in localStorage/sessionStorage
-    token = create_guest_token(str(guest.id), fingerprint)
+    token = create_guest_token(str(guest.id), fingerprint, platform=platform)
 
     # Return session with token included
     return GuestSessionResponse(
@@ -157,6 +183,7 @@ async def switch_role(
     data: RoleSwitchRequest,
     request: Request,
     current_user: CurrentUser,
+    x_platform: Annotated[str | None, Header(alias="X-Platform")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> RoleSwitchResponse:
     """Switch between patient and doctor identities.
@@ -166,6 +193,8 @@ async def switch_role(
     - Only PATIENT <-> DOCTOR switches are allowed.
     - Requires both roles to be registered separately.
     """
+    platform = _read_platform(request, x_platform)
+
     if current_user.role == data.target_role:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -204,7 +233,7 @@ async def switch_role(
     await db.commit()
 
     # Issue new token for the target identity
-    new_token = create_access_token(target_user.id)
+    new_token = create_access_token(target_user.id, platform=platform)
 
     return RoleSwitchResponse(
         new_token=new_token,

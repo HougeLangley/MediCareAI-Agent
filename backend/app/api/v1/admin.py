@@ -4,9 +4,9 @@ Manage LLM provider configs and system settings.
 Requires admin role.
 """
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +33,7 @@ def _config_to_response(config: LLMProviderConfig) -> dict[str, Any]:
     return {
         "id": config.id,
         "provider": config.provider,
+        "platform": config.platform,
         "name": config.name,
         "base_url": config.base_url,
         "default_model": config.default_model,
@@ -50,12 +51,14 @@ def _config_to_response(config: LLMProviderConfig) -> dict[str, Any]:
 
 @router.get("/llm-providers", response_model=list[LLMProviderConfigResponse])
 async def list_llm_providers(
+    platform: Annotated[str | None, Query(description="Filter by platform (web/miniapp/ios/android)")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> list[dict[str, Any]]:
-    """List all LLM provider configurations."""
-    result = await db.execute(
-        select(LLMProviderConfig).order_by(LLMProviderConfig.provider)
-    )
+    """List all LLM provider configurations, optionally filtered by platform."""
+    stmt = select(LLMProviderConfig).order_by(LLMProviderConfig.provider)
+    if platform:
+        stmt = stmt.where(LLMProviderConfig.platform == platform.strip().lower())
+    result = await db.execute(stmt)
     return [_config_to_response(c) for c in result.scalars().all()]
 
 
@@ -72,26 +75,35 @@ async def create_llm_provider(
 
     The API key is encrypted before storage.
     """
+    # Check (provider, platform) uniqueness
     existing = await db.execute(
-        select(LLMProviderConfig).where(LLMProviderConfig.provider == data.provider)
+        select(LLMProviderConfig).where(
+            LLMProviderConfig.provider == data.provider,
+            LLMProviderConfig.platform == data.platform,
+        )
     )
     if existing.scalar_one_or_none():
+        platform_label = data.platform or "global"
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Provider '{data.provider}' already exists",
+            detail=f"Provider '{data.provider}' for platform '{platform_label}' already exists",
         )
 
     # Encrypt API key before storage
     encrypted_key = encrypt_value(data.api_key)
 
     if data.is_default:
-        stmt = select(LLMProviderConfig).where(LLMProviderConfig.is_default == True)
+        stmt = select(LLMProviderConfig).where(
+            LLMProviderConfig.is_default == True,
+            LLMProviderConfig.platform == data.platform,
+        )
         result = await db.execute(stmt)
         for conf in result.scalars():
             conf.is_default = False
 
     config = LLMProviderConfig(
         provider=data.provider,
+        platform=data.platform,
         name=data.name,
         base_url=data.base_url,
         api_key_encrypted=encrypted_key,
@@ -109,17 +121,21 @@ async def create_llm_provider(
 @router.get("/llm-providers/{provider}", response_model=LLMProviderConfigResponse)
 async def get_llm_provider(
     provider: str,
+    platform: Annotated[str | None, Query(description="Platform scope (web/miniapp/ios/android). Omit for global.")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get a specific LLM provider configuration."""
     result = await db.execute(
-        select(LLMProviderConfig).where(LLMProviderConfig.provider == provider)
+        select(LLMProviderConfig).where(
+            LLMProviderConfig.provider == provider,
+            LLMProviderConfig.platform == platform,
+        )
     )
     config = result.scalar_one_or_none()
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Provider '{provider}' not found",
+            detail=f"Provider '{provider}' (platform={platform or 'global'}) not found",
         )
     return _config_to_response(config)
 
@@ -128,6 +144,7 @@ async def get_llm_provider(
 async def update_llm_provider(
     provider: str,
     data: LLMProviderConfigUpdate,
+    platform: Annotated[str | None, Query(description="Platform scope (web/miniapp/ios/android). Omit for global.")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Update an LLM provider configuration.
@@ -135,13 +152,16 @@ async def update_llm_provider(
     If api_key is provided, it is encrypted before storage.
     """
     result = await db.execute(
-        select(LLMProviderConfig).where(LLMProviderConfig.provider == provider)
+        select(LLMProviderConfig).where(
+            LLMProviderConfig.provider == provider,
+            LLMProviderConfig.platform == platform,
+        )
     )
     config = result.scalar_one_or_none()
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Provider '{provider}' not found",
+            detail=f"Provider '{provider}' (platform={platform or 'global'}) not found",
         )
 
     update_data = data.model_dump(exclude_unset=True)
@@ -162,17 +182,21 @@ async def update_llm_provider(
 @router.delete("/llm-providers/{provider}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_llm_provider(
     provider: str,
+    platform: Annotated[str | None, Query(description="Platform scope (web/miniapp/ios/android). Omit for global.")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete an LLM provider configuration."""
     result = await db.execute(
-        select(LLMProviderConfig).where(LLMProviderConfig.provider == provider)
+        select(LLMProviderConfig).where(
+            LLMProviderConfig.provider == provider,
+            LLMProviderConfig.platform == platform,
+        )
     )
     config = result.scalar_one_or_none()
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Provider '{provider}' not found",
+            detail=f"Provider '{provider}' (platform={platform or 'global'}) not found",
         )
     await db.delete(config)
     await db.commit()

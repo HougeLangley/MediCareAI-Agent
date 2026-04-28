@@ -10,6 +10,8 @@ class LLMProviderConfigBase(BaseModel):
     """Base LLM provider config schema."""
 
     provider: str = Field(..., min_length=1, max_length=50)
+    # NULL = global; otherwise web/miniapp/ios/android
+    platform: str | None = Field(default=None, max_length=20)
     name: str = Field(..., min_length=1, max_length=100)
     base_url: str = Field(..., max_length=500)
     default_model: str = Field(..., min_length=1, max_length=100)
@@ -35,6 +37,7 @@ class LLMProviderConfigUpdate(BaseModel):
     api_key: str | None = None
     default_model: str | None = Field(None, max_length=100)
     model_type: str | None = Field(None, max_length=50)
+    platform: str | None = Field(None, max_length=20)
     is_active: bool | None = None
     is_default: bool | None = None
 

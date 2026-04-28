@@ -21,7 +21,6 @@ from app.models.config import LLMProviderConfig
 Provider = Literal["openai", "glm", "deepseek", "moonshot", "dashscope"]
 
 # Minimal fallback defaults — base URLs only, no API keys.
-# These are used only when no DB config exists, to guide users.
 _PROVIDER_DEFAULTS: dict[str, dict] = {
     "openai": {"base_url": "https://api.openai.com/v1", "default_model": "gpt-4o-mini"},
     "glm": {"base_url": "https://open.bigmodel.cn/api/paas/v4", "default_model": "glm-4-flash"},
@@ -44,13 +43,21 @@ class LLMResponse:
 
 
 async def _get_provider_config(
-    db: AsyncSession | None, provider: str
+    db: AsyncSession | None,
+    provider: str,
+    platform: str | None = None,
 ) -> dict:
     """Get provider config from database.
+
+    Platform resolution order:
+    1. Exact platform match (e.g. platform='miniapp')
+    2. Global config (platform=NULL)
+    3. Raise ValueError
 
     Args:
         db: Async database session (optional).
         provider: Provider name.
+        platform: Target platform (web/miniapp/ios/android).
 
     Returns:
         Dict with base_url, api_key, default_model.
@@ -58,10 +65,18 @@ async def _get_provider_config(
     Raises:
         ValueError: If no config found in database.
     """
-    if db is not None:
+    if db is None:
+        raise ValueError(
+            f"Provider '{provider}' is not configured. "
+            f"Please add it via /api/v1/admin/llm-providers."
+        )
+
+    # Try exact platform match first
+    if platform:
         result = await db.execute(
             select(LLMProviderConfig).where(
                 LLMProviderConfig.provider == provider,
+                LLMProviderConfig.platform == platform.strip().lower(),
                 LLMProviderConfig.is_active == True,
             )
         )
@@ -74,47 +89,100 @@ async def _get_provider_config(
                 "default_model": config.default_model,
             }
 
-    # No DB config — raise so caller knows to configure via admin panel
+    # Fallback to global config (platform=NULL)
+    result = await db.execute(
+        select(LLMProviderConfig).where(
+            LLMProviderConfig.provider == provider,
+            LLMProviderConfig.platform.is_(None),
+            LLMProviderConfig.is_active == True,
+        )
+    )
+    config = result.scalar_one_or_none()
+    if config:
+        decrypted_key = decrypt_value(config.api_key_encrypted)
+        return {
+            "base_url": config.base_url,
+            "api_key": decrypted_key or "",
+            "default_model": config.default_model,
+        }
+
     raise ValueError(
-        f"Provider '{provider}' is not configured. "
+        f"Provider '{provider}' is not configured for platform '{platform or 'global'}'. "
         f"Please add it via /api/v1/admin/llm-providers."
     )
 
 
-async def _get_default_provider(db: AsyncSession | None) -> str:
+async def _get_default_provider(
+    db: AsyncSession | None,
+    platform: str | None = None,
+    model_type: str = "diagnosis",
+) -> str:
     """Return the provider marked as default in the database."""
-    if db is not None:
+    if db is None:
+        return "openai"
+
+    # Try platform-specific default first
+    if platform:
         result = await db.execute(
             select(LLMProviderConfig).where(
                 LLMProviderConfig.is_default == True,
+                LLMProviderConfig.platform == platform.strip().lower(),
                 LLMProviderConfig.is_active == True,
+                LLMProviderConfig.model_type == model_type,
             )
         )
         config = result.scalar_one_or_none()
         if config:
             return config.provider
 
-    # Fallback: pick first available from hardcoded list
-    return "openai"
+    # Fallback to global default
+    result = await db.execute(
+        select(LLMProviderConfig).where(
+            LLMProviderConfig.is_default == True,
+            LLMProviderConfig.platform.is_(None),
+            LLMProviderConfig.is_active == True,
+            LLMProviderConfig.model_type == model_type,
+        )
+    )
+    config = result.scalar_one_or_none()
+    if config:
+        return config.provider
+
+    # Last resort: first active provider for this model_type
+    result = await db.execute(
+        select(LLMProviderConfig).where(
+            LLMProviderConfig.is_active == True,
+            LLMProviderConfig.model_type == model_type,
+        ).limit(1)
+    )
+    config = result.scalar_one_or_none()
+    return config.provider if config else "openai"
 
 
 class LLMService:
-    """Unified LLM client supporting multiple providers."""
+    """Unified LLM client supporting multiple providers with platform isolation."""
 
-    def __init__(self, provider: str | None = None, db: AsyncSession | None = None) -> None:
+    def __init__(
+        self,
+        provider: str | None = None,
+        platform: str | None = None,
+        db: AsyncSession | None = None,
+    ) -> None:
         """Initialize with a specific provider or auto-detect.
 
         Args:
             provider: Provider name (e.g. openai, glm, deepseek, moonshot, dashscope).
                       Auto-detects from database defaults if not specified.
+            platform: Target platform for config resolution (web/miniapp/ios/android).
             db: Async database session for reading provider configs.
         """
         self.provider = provider or "openai"
+        self.platform = platform
         self._db = db
 
     async def _get_client(self) -> AsyncOpenAI:
         """Get configured AsyncOpenAI client."""
-        config = await _get_provider_config(self._db, self.provider)
+        config = await _get_provider_config(self._db, self.provider, self.platform)
         if not config.get("api_key"):
             raise ValueError(
                 f"API key for provider '{self.provider}' is not configured. "
@@ -131,7 +199,7 @@ class LLMService:
     async def _get_default_model(self) -> str:
         """Get default model for current provider."""
         try:
-            config = await _get_provider_config(self._db, self.provider)
+            config = await _get_provider_config(self._db, self.provider, self.platform)
             return config.get("default_model", _PROVIDER_DEFAULTS.get(self.provider, {}).get("default_model", ""))
         except ValueError:
             return _PROVIDER_DEFAULTS.get(self.provider, {}).get("default_model", "")
@@ -208,11 +276,28 @@ class LLMService:
             return {
                 "status": "ok",
                 "provider": self.provider,
+                "platform": self.platform,
                 "available_models": [m.id for m in models.data[:5]],
             }
         except Exception as e:
             return {
                 "status": "error",
                 "provider": self.provider,
+                "platform": self.platform,
                 "detail": str(e),
             }
+
+
+async def get_llm_service(
+    db: AsyncSession,
+    platform: str | None = None,
+    model_type: str = "diagnosis",
+) -> LLMService:
+    """Factory to get an LLMService with platform-aware provider resolution.
+
+    Usage:
+        llm = await get_llm_service(db, platform="miniapp", model_type="diagnosis")
+        response = await llm.chat(messages=[...])
+    """
+    provider = await _get_default_provider(db, platform=platform, model_type=model_type)
+    return LLMService(provider=provider, platform=platform, db=db)

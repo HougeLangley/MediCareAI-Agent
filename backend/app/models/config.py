@@ -7,7 +7,7 @@ All sensitive values encrypted at application layer via Fernet.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, String, Text
+from sqlalchemy import Boolean, DateTime, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,12 +19,18 @@ class LLMProviderConfig(Base):
 
     api_key_encrypted stores the Fernet-encrypted API key.
     api_key column is removed; never store plaintext keys.
+
+    Platform isolation:
+    - platform=NULL: global config, available to all platforms.
+    - platform='web'|'miniapp'|'ios'|'android': platform-specific.
     """
 
     __tablename__ = "llm_provider_configs"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    provider: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    provider: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Platform scope: NULL=global, otherwise web/miniapp/ios/android
+    platform: Mapped[str | None] = mapped_column(String(20), nullable=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     base_url: Mapped[str] = mapped_column(String(500), nullable=False)
     # Encrypted at application layer via Fernet (see app.core.encryption)
@@ -43,6 +49,11 @@ class LLMProviderConfig(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        # One provider per platform (NULL = global)
+        UniqueConstraint("provider", "platform", name="uq_provider_platform"),
     )
 
 

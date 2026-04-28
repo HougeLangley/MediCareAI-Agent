@@ -33,11 +33,16 @@ def get_password_hash(password: str) -> str:
     return hashed.decode("utf-8")
 
 
-def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
+def create_access_token(
+    subject: str | Any,
+    platform: str | None = None,
+    expires_delta: timedelta | None = None,
+) -> str:
     """Create a JWT access token.
 
     Args:
         subject: Usually the user ID (str or UUID).
+        platform: The requesting platform (web, miniapp, ios, android).
         expires_delta: Custom expiration time.
 
     Returns:
@@ -48,19 +53,29 @@ def create_access_token(subject: str | Any, expires_delta: timedelta | None = No
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode = {"exp": expire, "sub": str(subject), "type": "access"}
+    to_encode = {
+        "exp": expire,
+        "sub": str(subject),
+        "type": "access",
+        "platform": platform or "unknown",
+    }
     encoded_jwt = jwt.encode(
         to_encode, settings.secret_key.get_secret_value(), algorithm=ALGORITHM
     )
     return encoded_jwt
 
 
-def create_guest_token(guest_session_id: str, fingerprint: str | None = None) -> str:
+def create_guest_token(
+    guest_session_id: str,
+    fingerprint: str | None = None,
+    platform: str | None = None,
+) -> str:
     """Create a JWT token for guest sessions.
 
     Args:
         guest_session_id: The guest session UUID.
         fingerprint: Optional browser fingerprint.
+        platform: The requesting platform.
 
     Returns:
         Encoded JWT string.
@@ -71,6 +86,7 @@ def create_guest_token(guest_session_id: str, fingerprint: str | None = None) ->
         "sub": str(guest_session_id),
         "type": "guest",
         "fingerprint": fingerprint,
+        "platform": platform or "unknown",
     }
     encoded_jwt = jwt.encode(
         to_encode, settings.secret_key.get_secret_value(), algorithm=ALGORITHM
