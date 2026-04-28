@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LLMProviderConfigBase(BaseModel):
@@ -13,12 +13,16 @@ class LLMProviderConfigBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     base_url: str = Field(..., max_length=500)
     default_model: str = Field(..., min_length=1, max_length=100)
+    model_type: str = Field(default="diagnosis", max_length=50)
     is_active: bool = True
     is_default: bool = False
 
 
 class LLMProviderConfigCreate(LLMProviderConfigBase):
-    """Create LLM provider config."""
+    """Create LLM provider config.
+
+    api_key is accepted in plaintext and encrypted before storage.
+    """
 
     api_key: str = Field(..., min_length=1)
 
@@ -30,6 +34,7 @@ class LLMProviderConfigUpdate(BaseModel):
     base_url: str | None = Field(None, max_length=500)
     api_key: str | None = None
     default_model: str | None = Field(None, max_length=100)
+    model_type: str | None = Field(None, max_length=50)
     is_active: bool | None = None
     is_default: bool | None = None
 
