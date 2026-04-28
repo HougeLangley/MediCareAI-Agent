@@ -101,9 +101,9 @@ async def chat_stream(
 
 @router.get("/health")
 async def llm_health(
+    current_user: CurrentUser,
     provider: Provider | None = None,
-    current_user: CurrentUser = Depends(),
-) -> dict:
+) -> dict:    
     """Check LLM provider connectivity."""
     try:
         service = LLMService(provider=provider)
