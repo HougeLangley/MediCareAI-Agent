@@ -26,6 +26,9 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
+# Backward-compatible alias used by agent tools
+async_session_maker = AsyncSessionLocal
+
 Base = declarative_base()
 
 

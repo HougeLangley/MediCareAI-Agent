@@ -1,26 +1,49 @@
 """Multi-Agent Medical Collaboration endpoints.
 
-Orchestrates DiagnosisAgent, PlanningAgent, and MonitoringAgent.
+New design per PROPOSAL.md:
+- /route      → MasterAgent intent classification + auto-routing
+- /diagnose   → DiagnosisAgent with Tool Use + structured output
+- /plan       → PlanningAgent with structured treatment plan
+- /monitor    → MonitoringAgent with structured assessment
+- /consult    → Full multi-agent consultation
+- /sessions   → Agent session management
 """
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, require_role
 from app.db.session import get_db
-from app.services.agents import AgentOrchestrator
+from app.models.agent import AgentSession, AgentSessionStatus
+from app.models.user import User, UserRole
+from app.services.agents import AgentOrchestrator, DiagnosisAgent, MonitoringAgent, PlanningAgent
 from app.services.rag import RAGService
 
 router = APIRouter()
 
 
+# ---------------------------------------------------------------------------
+# Request / Response schemas
+# ---------------------------------------------------------------------------
+
+class RouteRequest(BaseModel):
+    """Natural language input for MasterAgent routing."""
+
+    message: str = Field(..., min_length=1, max_length=2000, description="Patient message")
+    patient_id: str | None = Field(None, description="Patient UUID if authenticated")
+    patient_history: str | None = Field(None, max_length=5000)
+    provider: str | None = None
+
+
 class DiagnosisRequest(BaseModel):
-    """Symptom analysis request."""
+    """Symptom analysis request with Tool Use."""
 
     symptoms: str = Field(..., min_length=5, max_length=2000)
+    patient_id: str | None = Field(None, description="Patient UUID for history lookup")
     patient_history: str | None = Field(None, max_length=5000)
     test_results: str | None = Field(None, max_length=5000)
     provider: str | None = None
@@ -48,9 +71,44 @@ class ConsultationRequest(BaseModel):
     """Full multi-agent consultation request."""
 
     symptoms: str = Field(..., min_length=5, max_length=2000)
+    patient_id: str | None = Field(None)
     patient_history: str | None = Field(None, max_length=5000)
     patient_profile: dict[str, Any] | None = None
     provider: str | None = None
+
+
+class SessionListResponse(BaseModel):
+    """Agent session list item."""
+
+    id: str
+    session_type: str
+    status: str
+    intent: str | None
+    created_at: str
+    updated_at: str
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
+@router.post("/route", status_code=status.HTTP_200_OK)
+async def route_request(
+    req: RouteRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+) -> dict[str, Any]:
+    """MasterAgent: classify intent and route to the appropriate Agent.
+
+    This is the primary entry point for Agent interactions.
+    """
+    orchestrator = AgentOrchestrator(provider=req.provider)
+    patient_id = req.patient_id or (str(current_user.id) if current_user else None)
+    return await orchestrator.route(
+        user_input=req.message,
+        patient_id=patient_id,
+        patient_history=req.patient_history,
+    )
 
 
 @router.post("/diagnose", status_code=status.HTTP_200_OK)
@@ -59,20 +117,26 @@ async def diagnose(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = None,
 ) -> dict[str, Any]:
-    """Run DiagnosisAgent on reported symptoms."""
-    orchestrator = AgentOrchestrator(provider=req.provider)
-    rag = RAGService(db)
-    result = await orchestrator.diagnosis.analyze(
+    """DiagnosisAgent: structured diagnosis with Tool Use.
+
+    The Agent may automatically call:
+    - search_medical_knowledge
+    - query_patient_history (if patient_id provided)
+    - generate_structured_diagnosis
+    """
+    agent = DiagnosisAgent(provider=req.provider)
+    result = await agent.analyze(
         symptoms=req.symptoms,
+        patient_id=req.patient_id or (str(current_user.id) if current_user else None),
         patient_history=req.patient_history,
         test_results=req.test_results,
-        use_rag=True,
-        rag_service=rag,
     )
     return {
         "agent": "diagnosis",
+        "structured": result.structured_output.model_dump() if result.structured_output else None,
         "content": result.content,
-        "sources": result.sources_used,
+        "tool_calls_used": result.tool_calls_used,
+        "session_id": result.session_id,
     }
 
 
@@ -82,20 +146,17 @@ async def plan_treatment(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = None,
 ) -> dict[str, Any]:
-    """Run PlanningAgent to generate treatment plan."""
-    orchestrator = AgentOrchestrator(provider=req.provider)
-    rag = RAGService(db)
-    result = await orchestrator.planning.plan(
+    """PlanningAgent: structured treatment plan."""
+    agent = PlanningAgent(provider=req.provider)
+    result = await agent.plan(
         diagnosis=req.diagnosis,
         patient_profile=req.patient_profile,
         constraints=req.constraints,
-        use_rag=True,
-        rag_service=rag,
     )
     return {
         "agent": "planning",
+        "structured": result.structured_output.model_dump() if result.structured_output else None,
         "content": result.content,
-        "sources": result.sources_used,
     }
 
 
@@ -104,17 +165,17 @@ async def monitor(
     req: MonitoringRequest,
     current_user: CurrentUser = None,
 ) -> dict[str, Any]:
-    """Run MonitoringAgent on patient updates."""
-    orchestrator = AgentOrchestrator(provider=req.provider)
-    result = await orchestrator.monitoring.check(
+    """MonitoringAgent: structured monitoring assessment."""
+    agent = MonitoringAgent(provider=req.provider)
+    result = await agent.check(
         patient_updates=req.patient_updates,
         baseline_status=req.baseline_status,
         current_plan=req.current_plan,
     )
     return {
         "agent": "monitoring",
+        "structured": result.structured_output.model_dump() if result.structured_output else None,
         "content": result.content,
-        "confidence": result.confidence,
     }
 
 
@@ -124,12 +185,85 @@ async def full_consultation(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = None,
 ) -> dict[str, Any]:
-    """Run complete multi-agent consultation (diagnosis + plan + monitoring)."""
+    """Full multi-agent consultation (diagnosis + plan + monitoring).
+
+    Uses AgentOrchestrator with automatic intent detection.
+    """
     orchestrator = AgentOrchestrator(provider=req.provider)
-    rag = RAGService(db)
-    return await orchestrator.full_consultation(
-        symptoms=req.symptoms,
+    patient_id = req.patient_id or (str(current_user.id) if current_user else None)
+    return await orchestrator.route(
+        user_input=req.symptoms,
+        patient_id=patient_id,
         patient_history=req.patient_history,
-        patient_profile=req.patient_profile,
-        rag_service=rag,
     )
+
+
+@router.get("/sessions", response_model=list[SessionListResponse])
+async def list_sessions(
+    status_filter: str | None = Query(None, alias="status"),
+    type_filter: str | None = Query(None, alias="type"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(require_role(UserRole.ADMIN, UserRole.DOCTOR)),
+) -> list[SessionListResponse]:
+    """List Agent sessions (admin/doctor only).
+
+    Query params:
+    - status: active, completed, escalated, failed
+    - type: diagnosis, planning, monitoring, consultation
+    """
+    stmt = select(AgentSession).order_by(AgentSession.created_at.desc())
+
+    if status_filter:
+        stmt = stmt.where(AgentSession.status == AgentSessionStatus(status_filter))
+    if type_filter:
+        from app.models.agent import AgentSessionType
+        stmt = stmt.where(AgentSession.session_type == AgentSessionType(type_filter.upper()))
+
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    sessions = result.scalars().all()
+
+    return [
+        SessionListResponse(
+            id=str(s.id),
+            session_type=s.session_type.value,
+            status=s.status.value,
+            intent=s.intent,
+            created_at=s.created_at.isoformat() if s.created_at else "",
+            updated_at=s.updated_at.isoformat() if s.updated_at else "",
+        )
+        for s in sessions
+    ]
+
+
+@router.get("/sessions/{session_id}")
+async def get_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(require_role(UserRole.ADMIN, UserRole.DOCTOR)),
+) -> dict[str, Any]:
+    """Get full Agent session details."""
+    import uuid as uuid_module
+
+    stmt = select(AgentSession).where(AgentSession.id == uuid_module.UUID(session_id))
+    result = await db.execute(stmt)
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {
+        "id": str(session.id),
+        "session_type": session.session_type.value,
+        "status": session.status.value,
+        "intent": session.intent,
+        "context": session.context,
+        "tool_calls": session.tool_calls,
+        "structured_output": session.structured_output,
+        "escalation_reason": session.escalation_reason,
+        "created_at": session.created_at.isoformat() if session.created_at else None,
+        "updated_at": session.updated_at.isoformat() if session.updated_at else None,
+        "completed_at": session.completed_at.isoformat() if session.completed_at else None,
+    }

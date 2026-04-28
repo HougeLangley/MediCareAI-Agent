@@ -1,17 +1,24 @@
 """Unified LLM service layer.
 
-Supports multiple providers via OpenAI-compatible APIs.
-Provider configs are read from database (admin-managed).
+Supports:
+- Multiple providers via OpenAI-compatible APIs
+- Function calling / Tool Use for Agent workflows
+- Structured output via JSON Schema (response_format)
+- Platform-aware config resolution
 
-No hardcoded API keys. Base URLs are only used as fallbacks when
-database has no config, to help users know where to configure.
+All provider configs are read from the encrypted database (admin-managed).
+No hardcoded API keys.
 """
 
+from __future__ import annotations
+
+import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from openai import AsyncOpenAI
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,6 +47,7 @@ class LLMResponse:
     usage_prompt_tokens: int
     usage_completion_tokens: int
     finish_reason: str | None
+    tool_calls: list[dict[str, Any]] | None = None
 
 
 async def _get_provider_config(
@@ -47,24 +55,7 @@ async def _get_provider_config(
     provider: str,
     platform: str | None = None,
 ) -> dict:
-    """Get provider config from database.
-
-    Platform resolution order:
-    1. Exact platform match (e.g. platform='miniapp')
-    2. Global config (platform=NULL)
-    3. Raise ValueError
-
-    Args:
-        db: Async database session (optional).
-        provider: Provider name.
-        platform: Target platform (web/miniapp/ios/android).
-
-    Returns:
-        Dict with base_url, api_key, default_model.
-
-    Raises:
-        ValueError: If no config found in database.
-    """
+    """Get provider config from database with platform resolution."""
     if db is None:
         raise ValueError(
             f"Provider '{provider}' is not configured. "
@@ -121,7 +112,6 @@ async def _get_default_provider(
     if db is None:
         return "openai"
 
-    # Try platform-specific default first
     if platform:
         result = await db.execute(
             select(LLMProviderConfig).where(
@@ -135,7 +125,6 @@ async def _get_default_provider(
         if config:
             return config.provider
 
-    # Fallback to global default
     result = await db.execute(
         select(LLMProviderConfig).where(
             LLMProviderConfig.is_default == True,
@@ -148,7 +137,6 @@ async def _get_default_provider(
     if config:
         return config.provider
 
-    # Last resort: first active provider for this model_type
     result = await db.execute(
         select(LLMProviderConfig).where(
             LLMProviderConfig.is_active == True,
@@ -160,7 +148,7 @@ async def _get_default_provider(
 
 
 class LLMService:
-    """Unified LLM client supporting multiple providers with platform isolation."""
+    """Unified LLM client with Tool Use and structured output support."""
 
     def __init__(
         self,
@@ -168,14 +156,6 @@ class LLMService:
         platform: str | None = None,
         db: AsyncSession | None = None,
     ) -> None:
-        """Initialize with a specific provider or auto-detect.
-
-        Args:
-            provider: Provider name (e.g. openai, glm, deepseek, moonshot, dashscope).
-                      Auto-detects from database defaults if not specified.
-            platform: Target platform for config resolution (web/miniapp/ios/android).
-            db: Async database session for reading provider configs.
-        """
         self.provider = provider or "openai"
         self.platform = platform
         self._db = db
@@ -204,6 +184,10 @@ class LLMService:
         except ValueError:
             return _PROVIDER_DEFAULTS.get(self.provider, {}).get("default_model", "")
 
+    # ------------------------------------------------------------------
+    # Basic chat
+    # ------------------------------------------------------------------
+
     async def chat(
         self,
         messages: list[dict[str, str]],
@@ -230,13 +214,27 @@ class LLMService:
 
         choice = response.choices[0]
         usage = response.usage
+        message = choice.message
+
+        tool_calls = None
+        if message.tool_calls:
+            tool_calls = [
+                {
+                    "id": tc.id,
+                    "name": tc.function.name,
+                    "arguments": tc.function.arguments,
+                }
+                for tc in message.tool_calls
+            ]
+
         return LLMResponse(
-            content=choice.message.content or "",
+            content=message.content or "",
             model=response.model,
             provider=self.provider,
             usage_prompt_tokens=usage.prompt_tokens if usage else 0,
             usage_completion_tokens=usage.completion_tokens if usage else 0,
             finish_reason=choice.finish_reason,
+            tool_calls=tool_calls,
         )
 
     async def chat_stream(
@@ -268,6 +266,147 @@ class LLMService:
             if delta:
                 yield delta
 
+    # ------------------------------------------------------------------
+    # Tool Use / Function Calling
+    # ------------------------------------------------------------------
+
+    async def chat_with_tools(
+        self,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        system_prompt: str | None = None,
+        tool_choice: str = "auto",
+    ) -> LLMResponse:
+        """Chat with function-calling support.
+
+        The LLM may return tool_calls instead of content.
+        The caller is responsible for executing tools and calling again.
+        """
+        client = await self._get_client()
+        default_model = await self._get_default_model()
+
+        msgs = list(messages)
+        if system_prompt:
+            msgs.insert(0, {"role": "system", "content": system_prompt})
+
+        response = await client.chat.completions.create(
+            model=model or default_model,
+            messages=msgs,  # type: ignore[arg-type]
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tools=tools,  # type: ignore[arg-type]
+            tool_choice=tool_choice,  # type: ignore[arg-type]
+            stream=False,
+        )
+
+        choice = response.choices[0]
+        usage = response.usage
+        message = choice.message
+
+        tool_calls = None
+        if message.tool_calls:
+            tool_calls = [
+                {
+                    "id": tc.id,
+                    "name": tc.function.name,
+                    "arguments": json.loads(tc.function.arguments),
+                }
+                for tc in message.tool_calls
+            ]
+
+        return LLMResponse(
+            content=message.content or "",
+            model=response.model,
+            provider=self.provider,
+            usage_prompt_tokens=usage.prompt_tokens if usage else 0,
+            usage_completion_tokens=usage.completion_tokens if usage else 0,
+            finish_reason=choice.finish_reason,
+            tool_calls=tool_calls,
+        )
+
+    # ------------------------------------------------------------------
+    # Structured Output (JSON Schema)
+    # ------------------------------------------------------------------
+
+    async def generate_structured(
+        self,
+        messages: list[dict[str, str]],
+        output_schema: type[BaseModel],
+        model: str | None = None,
+        temperature: float = 0.2,
+        max_tokens: int | None = None,
+        system_prompt: str | None = None,
+    ) -> BaseModel:
+        """Generate structured output conforming to a Pydantic schema.
+
+        Uses OpenAI's response_format with json_schema when supported,
+        falling back to strict prompting + manual validation.
+        """
+        client = await self._get_client()
+        default_model = await self._get_default_model()
+
+        schema = output_schema.model_json_schema()
+        schema_name = output_schema.__name__
+
+        msgs = list(messages)
+        if system_prompt:
+            msgs.insert(0, {"role": "system", "content": system_prompt})
+
+        # Add schema instruction to system prompt
+        schema_instruction = (
+            f"\n\nYou must respond with a single JSON object matching this schema:\n"
+            f"{json.dumps(schema, indent=2, ensure_ascii=False)}\n"
+            f"Output ONLY the JSON object, no markdown formatting, no extra text."
+        )
+        if msgs and msgs[0]["role"] == "system":
+            msgs[0]["content"] += schema_instruction
+        else:
+            msgs.insert(0, {"role": "system", "content": schema_instruction})
+
+        try:
+            # Try native json_schema if provider supports it
+            response = await client.chat.completions.create(
+                model=model or default_model,
+                messages=msgs,  # type: ignore[arg-type]
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": schema_name,
+                        "schema": schema,
+                        "strict": True,
+                    },
+                },
+                stream=False,
+            )
+        except Exception:
+            # Fallback: standard chat + manual parsing
+            response = await client.chat.completions.create(
+                model=model or default_model,
+                messages=msgs,  # type: ignore[arg-type]
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=False,
+            )
+
+        content = response.choices[0].message.content or "{}"
+        # Strip markdown code blocks if present
+        content = content.strip()
+        if content.startswith("```json"):
+            content = content[7:]
+        if content.startswith("```"):
+            content = content[3:]
+        if content.endswith("```"):
+            content = content[:-3]
+        content = content.strip()
+
+        data = json.loads(content)
+        return output_schema.model_validate(data)
+
     async def health_check(self) -> dict:
         """Quick health check by listing available models."""
         try:
@@ -293,11 +432,6 @@ async def get_llm_service(
     platform: str | None = None,
     model_type: str = "diagnosis",
 ) -> LLMService:
-    """Factory to get an LLMService with platform-aware provider resolution.
-
-    Usage:
-        llm = await get_llm_service(db, platform="miniapp", model_type="diagnosis")
-        response = await llm.chat(messages=[...])
-    """
+    """Factory to get an LLMService with platform-aware provider resolution."""
     provider = await _get_default_provider(db, platform=platform, model_type=model_type)
     return LLMService(provider=provider, platform=platform, db=db)

@@ -1,5 +1,6 @@
 """SQLAlchemy ORM models."""
 
+from app.models.agent import AgentSession, AgentTask, PatientHealthProfile
 from app.models.config import LLMProviderConfig, SystemSetting
 from app.models.medical_case import MedicalCase, MedicalDocument
 from app.models.rag import Document, DocumentChunk
