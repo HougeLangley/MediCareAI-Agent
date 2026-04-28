@@ -4,14 +4,13 @@ Manage LLM provider configs and system settings.
 Requires admin role.
 """
 
-import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser, require_role
+from app.api.deps import require_role
 from app.db.session import get_db
 from app.models.config import LLMProviderConfig, SystemSetting
 from app.models.user import UserRole
@@ -24,7 +23,7 @@ from app.schemas.config import (
     SystemSettingUpdate,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_role(UserRole.ADMIN))])
 
 # ─── LLM Provider Configs ──────────────────────────────────────
 
@@ -32,7 +31,6 @@ router = APIRouter()
 @router.get("/llm-providers", response_model=list[LLMProviderConfigResponse])
 async def list_llm_providers(
     db: AsyncSession = Depends(get_db),
-    _admin: CurrentUser = Depends(require_role(UserRole.ADMIN)),
 ) -> list[LLMProviderConfig]:
     """List all LLM provider configurations."""
     result = await db.execute(
@@ -49,10 +47,8 @@ async def list_llm_providers(
 async def create_llm_provider(
     data: LLMProviderConfigCreate,
     db: AsyncSession = Depends(get_db),
-    _admin: CurrentUser = Depends(require_role(UserRole.ADMIN)),
 ) -> LLMProviderConfig:
     """Create a new LLM provider configuration."""
-    # Check for duplicate provider
     existing = await db.execute(
         select(LLMProviderConfig).where(LLMProviderConfig.provider == data.provider)
     )
@@ -62,7 +58,6 @@ async def create_llm_provider(
             detail=f"Provider '{data.provider}' already exists",
         )
 
-    # If setting as default, unset others
     if data.is_default:
         await db.execute(
             select(LLMProviderConfig).where(LLMProviderConfig.is_default == True)
@@ -81,7 +76,6 @@ async def create_llm_provider(
 async def get_llm_provider(
     provider: str,
     db: AsyncSession = Depends(get_db),
-    _admin: CurrentUser = Depends(require_role(UserRole.ADMIN)),
 ) -> LLMProviderConfig:
     """Get a specific LLM provider configuration."""
     result = await db.execute(
@@ -101,7 +95,6 @@ async def update_llm_provider(
     provider: str,
     data: LLMProviderConfigUpdate,
     db: AsyncSession = Depends(get_db),
-    _admin: CurrentUser = Depends(require_role(UserRole.ADMIN)),
 ) -> LLMProviderConfig:
     """Update an LLM provider configuration."""
     result = await db.execute(
@@ -127,7 +120,6 @@ async def update_llm_provider(
 async def delete_llm_provider(
     provider: str,
     db: AsyncSession = Depends(get_db),
-    _admin: CurrentUser = Depends(require_role(UserRole.ADMIN)),
 ) -> None:
     """Delete an LLM provider configuration."""
     result = await db.execute(
@@ -149,7 +141,6 @@ async def delete_llm_provider(
 @router.get("/settings", response_model=list[SystemSettingResponse])
 async def list_settings(
     db: AsyncSession = Depends(get_db),
-    _admin: CurrentUser = Depends(require_role(UserRole.ADMIN)),
 ) -> list[SystemSetting]:
     """List all system settings."""
     result = await db.execute(select(SystemSetting).order_by(SystemSetting.key))
@@ -164,7 +155,6 @@ async def list_settings(
 async def create_setting(
     data: SystemSettingCreate,
     db: AsyncSession = Depends(get_db),
-    _admin: CurrentUser = Depends(require_role(UserRole.ADMIN)),
 ) -> SystemSetting:
     """Create a system setting."""
     existing = await db.execute(
@@ -187,7 +177,6 @@ async def create_setting(
 async def get_setting(
     key: str,
     db: AsyncSession = Depends(get_db),
-    _admin: CurrentUser = Depends(require_role(UserRole.ADMIN)),
 ) -> SystemSetting:
     """Get a specific system setting."""
     result = await db.execute(select(SystemSetting).where(SystemSetting.key == key))
@@ -205,7 +194,6 @@ async def update_setting(
     key: str,
     data: SystemSettingUpdate,
     db: AsyncSession = Depends(get_db),
-    _admin: CurrentUser = Depends(require_role(UserRole.ADMIN)),
 ) -> SystemSetting:
     """Update a system setting."""
     result = await db.execute(select(SystemSetting).where(SystemSetting.key == key))
