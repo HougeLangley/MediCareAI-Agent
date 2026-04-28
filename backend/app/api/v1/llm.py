@@ -9,9 +9,11 @@ Provides direct access to the unified LLM service for:
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser
-from app.services.llm import LLMService, Provider
+from app.db.session import get_db
+from app.services.llm import LLMService, get_llm_service
 
 router = APIRouter()
 
@@ -21,7 +23,7 @@ class ChatRequest(BaseModel):
 
     messages: list[dict[str, str]] = Field(..., min_length=1)
     model: str | None = None
-    provider: Provider | None = None
+    provider: str | None = Field(None, description="Provider name (e.g. openai, moonshot). Uses default if omitted.")
     temperature: float = Field(0.7, ge=0.0, le=2.0)
     max_tokens: int | None = Field(None, ge=1, le=8192)
     system_prompt: str | None = None
@@ -42,10 +44,15 @@ class ChatResponse(BaseModel):
 async def chat(
     req: ChatRequest,
     current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
     """Non-streaming chat completion."""
     try:
-        service = LLMService(provider=req.provider)
+        service = await get_llm_service(
+            db, platform=current_user.platform, model_type="diagnosis"
+        )
+        if req.provider:
+            service = LLMService(provider=req.provider, platform=current_user.platform, db=db)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -72,10 +79,15 @@ async def chat(
 async def chat_stream(
     req: ChatRequest,
     current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """Streaming chat completion via SSE."""
     try:
-        service = LLMService(provider=req.provider)
+        service = await get_llm_service(
+            db, platform=current_user.platform, model_type="diagnosis"
+        )
+        if req.provider:
+            service = LLMService(provider=req.provider, platform=current_user.platform, db=db)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -102,11 +114,12 @@ async def chat_stream(
 @router.get("/health")
 async def llm_health(
     current_user: CurrentUser,
-    provider: Provider | None = None,
-) -> dict:    
+    db: AsyncSession = Depends(get_db),
+    provider: str | None = None,
+) -> dict:
     """Check LLM provider connectivity."""
     try:
-        service = LLMService(provider=provider)
+        service = LLMService(provider=provider or "openai", platform=current_user.platform, db=db)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

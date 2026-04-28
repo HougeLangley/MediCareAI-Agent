@@ -4,9 +4,10 @@ Manage LLM provider configs and system settings.
 Requires admin role.
 """
 
+from datetime import datetime, timezone
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,8 +15,9 @@ from app.api.deps import require_role
 from app.core.encryption import decrypt_value, encrypt_value, mask_api_key
 from app.db.session import get_db
 from app.models.config import LLMProviderConfig, SystemSetting
-from app.models.user import UserRole
+from app.models.user import User, UserRole
 from app.schemas.config import (
+    BatchSettingsRequest,
     LLMProviderConfigCreate,
     LLMProviderConfigResponse,
     LLMProviderConfigUpdate,
@@ -23,6 +25,7 @@ from app.schemas.config import (
     SystemSettingResponse,
     SystemSettingUpdate,
 )
+from app.services.llm import LLMService
 
 router = APIRouter(dependencies=[Depends(require_role(UserRole.ADMIN))])
 
@@ -240,6 +243,41 @@ async def create_setting(
     return setting
 
 
+# ─── Batch Settings ───────────────────────────────────────────────────
+# NOTE: Must be defined BEFORE dynamic routes like /settings/{key}
+#       so FastAPI matches /settings/batch first.
+
+
+@router.patch("/settings/batch", response_model=list[SystemSettingResponse])
+async def batch_update_settings(
+    req: BatchSettingsRequest,
+    db: AsyncSession = Depends(get_db),
+) -> list[SystemSetting]:
+    """Batch create or update system settings.
+
+    If a key exists, it is updated; otherwise it is created.
+    """
+    updated: list[SystemSetting] = []
+    for item in req.items:
+        result = await db.execute(select(SystemSetting).where(SystemSetting.key == item.key))
+        setting = result.scalar_one_or_none()
+        if setting:
+            setting.value = item.value
+            if item.description is not None:
+                setting.description = item.description
+            if item.is_sensitive is not None:
+                setting.is_sensitive = item.is_sensitive
+        else:
+            setting = SystemSetting(**item.model_dump())
+            db.add(setting)
+        updated.append(setting)
+
+    await db.commit()
+    for s in updated:
+        await db.refresh(s)
+    return updated
+
+
 @router.get("/settings/{key}", response_model=SystemSettingResponse)
 async def get_setting(
     key: str,
@@ -278,3 +316,100 @@ async def update_setting(
     await db.commit()
     await db.refresh(setting)
     return setting
+
+
+@router.delete("/settings/{key}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_setting(
+    key: str,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete a system setting."""
+    result = await db.execute(select(SystemSetting).where(SystemSetting.key == key))
+    setting = result.scalar_one_or_none()
+    if not setting:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Setting '{key}' not found",
+        )
+    await db.delete(setting)
+    await db.commit()
+
+
+# ─── LLM Provider Testing ───────────────────────────────────────────────
+
+
+@router.post("/llm-providers/{provider}/test")
+async def test_llm_provider(
+    provider: str,
+    platform: Annotated[str | None, Query(description="Platform scope")] = None,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Test LLM provider connectivity by listing models."""
+    try:
+        service = LLMService(provider=provider, platform=platform, db=db)
+        result = await service.health_check()
+        return {
+            "provider": provider,
+            "platform": platform or "global",
+            "status": result.get("status", "unknown"),
+            "detail": result.get("detail") if result.get("status") != "ok" else None,
+            "available_models": result.get("available_models", []),
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Provider test failed: {e}",
+        )
+
+
+# ─── Dashboard Stats ───────────────────────────────────────────────────────
+
+
+@router.get("/dashboard/stats")
+async def dashboard_stats(
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return admin dashboard statistics."""
+    from sqlalchemy import func
+
+    # User counts by role
+    user_counts = {}
+    for role in UserRole:
+        count_result = await db.execute(
+            select(func.count(User.id)).where(User.role == role)
+        )
+        user_counts[role.value] = count_result.scalar() or 0
+
+    # Total users
+    total_users = sum(user_counts.values())
+
+    # Provider configs
+    provider_result = await db.execute(select(func.count(LLMProviderConfig.id)))
+    provider_count = provider_result.scalar() or 0
+
+    active_providers = await db.execute(
+        select(func.count(LLMProviderConfig.id)).where(LLMProviderConfig.is_active == True)
+    )
+    active_provider_count = active_providers.scalar() or 0
+
+    # System settings
+    settings_result = await db.execute(select(func.count(SystemSetting.id)))
+    settings_count = settings_result.scalar() or 0
+
+    return {
+        "users": {
+            "total": total_users,
+            "by_role": user_counts,
+        },
+        "llm_providers": {
+            "total": provider_count,
+            "active": active_provider_count,
+        },
+        "system_settings": settings_count,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }

@@ -1,6 +1,9 @@
 """Application settings loaded from environment variables.
 
 No hardcoded secrets. All sensitive values come from .env or environment.
+Business-level configs (guest session TTL, max messages, LLM providers, etc.)
+have been moved to the system_settings / llm_provider_configs tables and are
+managed via /api/v1/admin/*. See app.services.config.DynamicConfigService.
 """
 
 from functools import lru_cache
@@ -45,24 +48,6 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://localhost:6379/2"
     celery_task_always_eager: bool = False
 
-    # AI Providers
-    openai_api_key: SecretStr | None = None
-    openai_base_url: str = "https://api.openai.com/v1"
-
-    glm_api_key: SecretStr | None = None
-    glm_base_url: str = "https://open.bigmodel.cn/api/paas/v4"
-
-    deepseek_api_key: SecretStr | None = None
-    deepseek_base_url: str = "https://api.deepseek.com/v1"
-
-    moonshot_api_key: SecretStr | None = None
-    moonshot_base_url: str = "https://api.moonshot.cn/v1"
-
-    dashscope_api_key: SecretStr | None = None
-    dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-
-    default_llm_model: str = "gpt-4o-mini"
-
     # Vector / RAG
     vector_dimension: int = 1536
     reranker_provider: str = "cohere"
@@ -79,10 +64,6 @@ class Settings(BaseSettings):
     # Monitoring
     sentry_dsn: str | None = None
     prometheus_port: int = 9090
-
-    # Guest Mode
-    guest_session_ttl_hours: int = 24
-    guest_max_messages: int = 10
 
     # CORS
     cors_origins: list[str] = ["*"]

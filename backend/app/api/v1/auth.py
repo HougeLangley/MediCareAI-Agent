@@ -38,6 +38,8 @@ from app.schemas.auth import (
     UserResponse,
 )
 
+from app.services.config import DynamicConfigService
+
 router = APIRouter()
 settings = get_settings()
 
@@ -153,14 +155,17 @@ async def create_guest_session(
     platform = _read_platform(request, x_platform)
     session_token = uuid.uuid4().hex
     fingerprint = request.headers.get("User-Agent", "")[:255] or None
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        hours=settings.guest_session_ttl_hours
-    )
+
+    # Read dynamic business config from system_settings
+    ttl_hours = await DynamicConfigService.guest_session_ttl_hours(db)
+    max_messages = await DynamicConfigService.guest_max_messages(db)
+
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=ttl_hours)
 
     guest = GuestSession(
         session_token=session_token,
         fingerprint=fingerprint,
-        max_messages=settings.guest_max_messages,
+        max_messages=max_messages,
         expires_at=expires_at,
     )
     db.add(guest)

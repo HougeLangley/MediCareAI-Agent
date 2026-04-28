@@ -7,7 +7,7 @@ Supports:
 - Platform-aware config resolution
 
 All provider configs are read from the encrypted database (admin-managed).
-No hardcoded API keys.
+No hardcoded API keys or provider defaults.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel
@@ -24,17 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.encryption import decrypt_value
 from app.models.config import LLMProviderConfig
-
-Provider = Literal["openai", "glm", "deepseek", "moonshot", "dashscope"]
-
-# Minimal fallback defaults — base URLs only, no API keys.
-_PROVIDER_DEFAULTS: dict[str, dict] = {
-    "openai": {"base_url": "https://api.openai.com/v1", "default_model": "gpt-4o-mini"},
-    "glm": {"base_url": "https://open.bigmodel.cn/api/paas/v4", "default_model": "glm-4-flash"},
-    "deepseek": {"base_url": "https://api.deepseek.com/v1", "default_model": "deepseek-chat"},
-    "moonshot": {"base_url": "https://api.moonshot.cn/v1", "default_model": "moonshot-v1-8k"},
-    "dashscope": {"base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1", "default_model": "qwen-turbo"},
-}
 
 
 @dataclass
@@ -110,7 +99,10 @@ async def _get_default_provider(
 ) -> str:
     """Return the provider marked as default in the database."""
     if db is None:
-        return "openai"
+        raise ValueError(
+            "No database session available. "
+            "Please configure a provider via /api/v1/admin/llm-providers."
+        )
 
     if platform:
         result = await db.execute(
@@ -144,7 +136,13 @@ async def _get_default_provider(
         ).limit(1)
     )
     config = result.scalar_one_or_none()
-    return config.provider if config else "openai"
+    if config:
+        return config.provider
+
+    raise ValueError(
+        f"No active provider configured for model_type '{model_type}'. "
+        "Please add one via /api/v1/admin/llm-providers."
+    )
 
 
 class LLMService:
@@ -180,9 +178,9 @@ class LLMService:
         """Get default model for current provider."""
         try:
             config = await _get_provider_config(self._db, self.provider, self.platform)
-            return config.get("default_model", _PROVIDER_DEFAULTS.get(self.provider, {}).get("default_model", ""))
+            return config.get("default_model", "")
         except ValueError:
-            return _PROVIDER_DEFAULTS.get(self.provider, {}).get("default_model", "")
+            return ""
 
     # ------------------------------------------------------------------
     # Basic chat
@@ -199,6 +197,10 @@ class LLMService:
         """Send a non-streaming chat completion request."""
         client = await self._get_client()
         default_model = await self._get_default_model()
+        if not model and not default_model:
+            raise ValueError(
+                f"No model specified and provider '{self.provider}' has no default model configured."
+            )
 
         msgs = list(messages)
         if system_prompt:
@@ -248,6 +250,10 @@ class LLMService:
         """Send a streaming chat completion request."""
         client = await self._get_client()
         default_model = await self._get_default_model()
+        if not model and not default_model:
+            raise ValueError(
+                f"No model specified and provider '{self.provider}' has no default model configured."
+            )
 
         msgs = list(messages)
         if system_prompt:
@@ -287,6 +293,10 @@ class LLMService:
         """
         client = await self._get_client()
         default_model = await self._get_default_model()
+        if not model and not default_model:
+            raise ValueError(
+                f"No model specified and provider '{self.provider}' has no default model configured."
+            )
 
         msgs = list(messages)
         if system_prompt:
@@ -347,6 +357,10 @@ class LLMService:
         """
         client = await self._get_client()
         default_model = await self._get_default_model()
+        if not model and not default_model:
+            raise ValueError(
+                f"No model specified and provider '{self.provider}' has no default model configured."
+            )
 
         schema = output_schema.model_json_schema()
         schema_name = output_schema.__name__

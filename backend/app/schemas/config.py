@@ -83,3 +83,9 @@ class SystemSettingResponse(SystemSettingBase):
     id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+
+
+class BatchSettingsRequest(BaseModel):
+    """Batch update system settings request."""
+
+    items: list[SystemSettingCreate]
