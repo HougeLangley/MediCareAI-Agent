@@ -55,6 +55,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     deploy:
       resources:
