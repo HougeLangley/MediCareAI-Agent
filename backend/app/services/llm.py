@@ -7,7 +7,7 @@ Supports multiple providers via OpenAI-compatible APIs:
 - Moonshot / Kimi (kimi-k2.5, kimi-k2.6)
 - Dashscope / Qwen (qwen-max, qwen-plus)
 
-All providers use the same AsyncOpenAI client with different base_url/api_key.
+Provider configs are read from database (admin-managed), with environment fallbacks.
 """
 
 from collections.abc import AsyncIterator
@@ -15,27 +15,23 @@ from dataclasses import dataclass
 from typing import Literal
 
 from openai import AsyncOpenAI
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.models.config import LLMProviderConfig
 
 settings = get_settings()
 
 Provider = Literal["openai", "glm", "deepseek", "moonshot", "dashscope"]
 
-_PROVIDER_CONFIG: dict[Provider, tuple[str, str | None]] = {
-    "openai": (settings.openai_base_url, settings.openai_api_key),
-    "glm": (settings.glm_base_url, settings.glm_api_key),
-    "deepseek": (settings.deepseek_base_url, settings.deepseek_api_key),
-    "moonshot": (settings.moonshot_base_url, settings.moonshot_api_key),
-    "dashscope": (settings.dashscope_base_url, settings.dashscope_api_key),
-}
-
-_DEFAULT_MODELS: dict[Provider, str] = {
-    "openai": "gpt-4o-mini",
-    "glm": "glm-4-flash",
-    "deepseek": "deepseek-chat",
-    "moonshot": "moonshot-v1-8k",
-    "dashscope": "qwen-turbo",
+# Fallback defaults from environment (base URLs only, no API keys)
+_PROVIDER_DEFAULTS: dict[Provider, dict] = {
+    "openai": {"base_url": settings.openai_base_url, "default_model": "gpt-4o-mini"},
+    "glm": {"base_url": settings.glm_base_url, "default_model": "glm-4-flash"},
+    "deepseek": {"base_url": settings.deepseek_base_url, "default_model": "deepseek-chat"},
+    "moonshot": {"base_url": settings.moonshot_base_url, "default_model": "moonshot-v1-8k"},
+    "dashscope": {"base_url": settings.dashscope_base_url, "default_model": "qwen-turbo"},
 }
 
 
@@ -51,41 +47,118 @@ class LLMResponse:
     finish_reason: str | None
 
 
+async def _get_provider_config(
+    db: AsyncSession | None, provider: Provider
+) -> dict:
+    """Get provider config from database or fall back to environment defaults.
+
+    Args:
+        db: Async database session (optional).
+        provider: Provider name.
+
+    Returns:
+        Dict with base_url, api_key, default_model.
+
+    Raises:
+        ValueError: If no config found and no DB session available.
+    """
+    # Try database first
+    if db is not None:
+        result = await db.execute(
+            select(LLMProviderConfig).where(
+                LLMProviderConfig.provider == provider,
+                LLMProviderConfig.is_active == True,
+            )
+        )
+        config = result.scalar_one_or_none()
+        if config:
+            return {
+                "base_url": config.base_url,
+                "api_key": config.api_key,
+                "default_model": config.default_model,
+            }
+
+    # Fallback: check environment variables for API key
+    env_key = None
+    if provider == "openai":
+        env_key = settings.openai_api_key
+    elif provider == "glm":
+        env_key = settings.glm_api_key
+    elif provider == "deepseek":
+        env_key = settings.deepseek_api_key
+    elif provider == "moonshot":
+        env_key = settings.moonshot_api_key
+    elif provider == "dashscope":
+        env_key = settings.dashscope_api_key
+
+    defaults = _PROVIDER_DEFAULTS.get(provider, {})
+    if env_key:
+        return {
+            "base_url": defaults.get("base_url", ""),
+            "api_key": env_key.get_secret_value(),
+            "default_model": defaults.get("default_model", ""),
+        }
+
+    raise ValueError(
+        f"Provider '{provider}' is not configured. "
+        f"Please configure it via /api/v1/admin/llm-providers or set {provider}_api_key in environment."
+    )
+
+
 class LLMService:
     """Unified LLM client supporting multiple providers."""
 
-    def __init__(self, provider: Provider | None = None) -> None:
-        """Initialize with a specific provider or default from settings.
+    def __init__(self, provider: Provider | None = None, db: AsyncSession | None = None) -> None:
+        """Initialize with a specific provider or auto-detect.
 
         Args:
             provider: One of openai/glm/deepseek/moonshot/dashscope.
-                      Defaults to environment setting.
+                      Auto-detects from database defaults if not specified.
+            db: Async database session for reading provider configs.
         """
-        self.provider = provider or self._infer_default_provider()
-        base_url, api_key = _PROVIDER_CONFIG[self.provider]
+        self.provider = provider or self._infer_default_provider(db)
+        self._db = db
 
-        if not api_key:
+    @staticmethod
+    def _infer_default_provider(db: AsyncSession | None = None) -> Provider:
+        """Infer default provider from database or environment."""
+        # Note: This is synchronous; for async DB lookup, caller should specify provider
+        for prov in ("openai", "glm", "deepseek", "moonshot", "dashscope"):
+            env_key = None
+            if prov == "openai":
+                env_key = settings.openai_api_key
+            elif prov == "glm":
+                env_key = settings.glm_api_key
+            elif prov == "deepseek":
+                env_key = settings.deepseek_api_key
+            elif prov == "moonshot":
+                env_key = settings.moonshot_api_key
+            elif prov == "dashscope":
+                env_key = settings.dashscope_api_key
+            if env_key:
+                return prov  # type: ignore[return-value]
+        return "openai"
+
+    async def _get_client(self) -> AsyncOpenAI:
+        """Get configured AsyncOpenAI client."""
+        config = await _get_provider_config(self._db, self.provider)
+        if not config.get("api_key"):
             raise ValueError(
                 f"API key for provider '{self.provider}' is not configured. "
-                f"Set {self.provider}_api_key in environment."
+                f"Please add it via /api/v1/admin/llm-providers."
             )
 
-        self.client = AsyncOpenAI(
-            base_url=base_url,
-            api_key=api_key.get_secret_value(),
+        return AsyncOpenAI(
+            base_url=config["base_url"],
+            api_key=config["api_key"],
             timeout=60.0,
             max_retries=2,
         )
-        self.default_model = _DEFAULT_MODELS[self.provider]
 
-    @staticmethod
-    def _infer_default_provider() -> Provider:
-        """Infer default provider from which API key is available."""
-        for prov in ("openai", "glm", "deepseek", "moonshot", "dashscope"):
-            _, key = _PROVIDER_CONFIG[prov]
-            if key:
-                return prov
-        return "openai"  # fallback
+    async def _get_default_model(self) -> str:
+        """Get default model for current provider."""
+        config = await _get_provider_config(self._db, self.provider)
+        return config.get("default_model", _PROVIDER_DEFAULTS[self.provider]["default_model"])
 
     async def chat(
         self,
@@ -95,24 +168,16 @@ class LLMService:
         max_tokens: int | None = None,
         system_prompt: str | None = None,
     ) -> LLMResponse:
-        """Send a non-streaming chat completion request.
+        """Send a non-streaming chat completion request."""
+        client = await self._get_client()
+        default_model = await self._get_default_model()
 
-        Args:
-            messages: List of {"role": "user"|"assistant"|"system", "content": "..."}.
-            model: Override default model.
-            temperature: Sampling temperature (0-2).
-            max_tokens: Max tokens to generate.
-            system_prompt: Optional system message prepended to messages.
-
-        Returns:
-            LLMResponse with content and usage stats.
-        """
         msgs = list(messages)
         if system_prompt:
             msgs.insert(0, {"role": "system", "content": system_prompt})
 
-        response = await self.client.chat.completions.create(
-            model=model or self.default_model,
+        response = await client.chat.completions.create(
+            model=model or default_model,
             messages=msgs,  # type: ignore[arg-type]
             temperature=temperature,
             max_tokens=max_tokens,
@@ -124,7 +189,7 @@ class LLMService:
         return LLMResponse(
             content=choice.message.content or "",
             model=response.model,
-            provider=self.provider,
+            provider=self.provider,  # type: ignore[arg-type]
             usage_prompt_tokens=usage.prompt_tokens if usage else 0,
             usage_completion_tokens=usage.completion_tokens if usage else 0,
             finish_reason=choice.finish_reason,
@@ -138,17 +203,16 @@ class LLMService:
         max_tokens: int | None = None,
         system_prompt: str | None = None,
     ) -> AsyncIterator[str]:
-        """Send a streaming chat completion request.
+        """Send a streaming chat completion request."""
+        client = await self._get_client()
+        default_model = await self._get_default_model()
 
-        Yields:
-            Text chunks as they arrive from the LLM.
-        """
         msgs = list(messages)
         if system_prompt:
             msgs.insert(0, {"role": "system", "content": system_prompt})
 
-        stream = await self.client.chat.completions.create(
-            model=model or self.default_model,
+        stream = await client.chat.completions.create(
+            model=model or default_model,
             messages=msgs,  # type: ignore[arg-type]
             temperature=temperature,
             max_tokens=max_tokens,
@@ -161,13 +225,10 @@ class LLMService:
                 yield delta
 
     async def health_check(self) -> dict:
-        """Quick health check by listing available models.
-
-        Returns:
-            {"status": "ok"|"error", "provider": ..., "detail": ...}
-        """
+        """Quick health check by listing available models."""
         try:
-            models = await self.client.models.list()
+            client = await self._get_client()
+            models = await client.models.list()
             return {
                 "status": "ok",
                 "provider": self.provider,

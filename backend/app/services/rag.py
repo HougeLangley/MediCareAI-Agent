@@ -175,7 +175,7 @@ class RAGService:
                 {"role": "user", "content": f"\u95ee\u9898\uff1a{query}\n\n\u53c2\u8003\u6587\u732e\uff1a\n{context}"},
             ]
 
-            llm = LLMService(provider=provider)  # type: ignore[arg-type]
+            llm = LLMService(provider=provider, db=self.db)
             resp = await llm.chat(messages=messages, temperature=0.3, max_tokens=2048)
             return resp.content
         except ValueError:
