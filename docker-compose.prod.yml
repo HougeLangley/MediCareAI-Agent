@@ -109,6 +109,22 @@ services:
           cpus: '0.5'
           memory: 256M
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: medicareai-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:3000:80"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+
 volumes:
   postgres_data:
   redis_data:
