@@ -74,7 +74,7 @@ class RAGService:
                 "UPDATE documents SET search_vector = "
                 "to_tsvector(:lang, :content) WHERE id = :id"
             ),
-            {"lang": "chinese" if language == "zh" else "english",
+            {"lang": "simple" if language == "zh" else "english",
              "content": content, "id": str(doc.id)},
         )
 
@@ -95,7 +95,7 @@ class RAGService:
                     "UPDATE document_chunks SET search_vector = "
                     "to_tsvector(:lang, :content) WHERE id = :id"
                 ),
-                {"lang": "chinese" if language == "zh" else "english",
+                {"lang": "simple" if language == "zh" else "english",
                  "content": chunk_text, "id": str(chunk.id)},
             )
 
@@ -127,11 +127,11 @@ class RAGService:
             Document.doc_type,
             func.ts_rank(
                 DocumentChunk.search_vector,
-                func.to_tsquery("chinese", tsquery),
+                func.to_tsquery("simple", tsquery),
             ).label("rank"),
         ).join(Document).where(
             DocumentChunk.search_vector.op("@@")(
-                func.to_tsquery("chinese", tsquery)
+                func.to_tsquery("simple", tsquery)
             )
         )
 
