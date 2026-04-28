@@ -6,14 +6,12 @@ No hardcoded secrets — all from Settings.
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
 
 from app.core.config import get_settings
 
 settings = get_settings()
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
@@ -21,14 +19,18 @@ GUEST_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against a hash."""
-    # bcrypt truncates at 72 bytes; pre-hash to avoid length issues
-    return pwd_context.verify(plain_password[:72], hashed_password)
+    """Verify a plain password against a bcrypt hash."""
+    plain_bytes = plain_password.encode("utf-8")
+    hash_bytes = hashed_password.encode("utf-8")
+    return bcrypt.checkpw(plain_bytes, hash_bytes)
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password."""
-    return pwd_context.hash(password[:72])
+    """Hash a password with bcrypt."""
+    password_bytes = password.encode("utf-8")
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode("utf-8")
 
 
 def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
