@@ -22,12 +22,13 @@ GUEST_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    # bcrypt truncates at 72 bytes; pre-hash to avoid length issues
+    return pwd_context.verify(plain_password[:72], hashed_password)
 
 
 def get_password_hash(password: str) -> str:
     """Hash a password."""
-    return pwd_context.hash(password)
+    return pwd_context.hash(password[:72])
 
 
 def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
