@@ -84,6 +84,9 @@ class Settings(BaseSettings):
     guest_session_ttl_hours: int = 24
     guest_max_messages: int = 10
 
+    # CORS
+    cors_origins: list[str] = ["*"]
+
     # Encryption master key for API keys at rest
     api_key_master_key: SecretStr | None = None
 

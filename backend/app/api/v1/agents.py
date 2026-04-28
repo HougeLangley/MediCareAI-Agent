@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser, require_role
+from app.api.deps import CurrentUser, CurrentUserContext, require_role
 from app.db.session import get_db
 from app.models.agent import AgentSession, AgentSessionStatus
 from app.models.user import User, UserRole
@@ -95,15 +95,12 @@ class SessionListResponse(BaseModel):
 @router.post("/route", status_code=status.HTTP_200_OK)
 async def route_request(
     req: RouteRequest,
+    ctx: CurrentUserContext,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
 ) -> dict[str, Any]:
-    """MasterAgent: classify intent and route to the appropriate Agent.
-
-    This is the primary entry point for Agent interactions.
-    """
+    """MasterAgent: classify intent and route to the appropriate Agent."""
     orchestrator = AgentOrchestrator(provider=req.provider)
-    patient_id = req.patient_id or (str(current_user.id) if current_user else None)
+    patient_id = req.patient_id or (str(ctx.user.id) if ctx.user else None)
     return await orchestrator.route(
         user_input=req.message,
         patient_id=patient_id,
@@ -114,20 +111,14 @@ async def route_request(
 @router.post("/diagnose", status_code=status.HTTP_200_OK)
 async def diagnose(
     req: DiagnosisRequest,
+    ctx: CurrentUserContext,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
 ) -> dict[str, Any]:
-    """DiagnosisAgent: structured diagnosis with Tool Use.
-
-    The Agent may automatically call:
-    - search_medical_knowledge
-    - query_patient_history (if patient_id provided)
-    - generate_structured_diagnosis
-    """
+    """DiagnosisAgent: structured diagnosis with Tool Use."""
     agent = DiagnosisAgent(provider=req.provider)
     result = await agent.analyze(
         symptoms=req.symptoms,
-        patient_id=req.patient_id or (str(current_user.id) if current_user else None),
+        patient_id=req.patient_id or (str(ctx.user.id) if ctx.user else None),
         patient_history=req.patient_history,
         test_results=req.test_results,
     )
@@ -143,8 +134,8 @@ async def diagnose(
 @router.post("/plan", status_code=status.HTTP_200_OK)
 async def plan_treatment(
     req: PlanningRequest,
+    ctx: CurrentUserContext,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
 ) -> dict[str, Any]:
     """PlanningAgent: structured treatment plan."""
     agent = PlanningAgent(provider=req.provider)
@@ -163,7 +154,7 @@ async def plan_treatment(
 @router.post("/monitor", status_code=status.HTTP_200_OK)
 async def monitor(
     req: MonitoringRequest,
-    current_user: CurrentUser = None,
+    ctx: CurrentUserContext,
 ) -> dict[str, Any]:
     """MonitoringAgent: structured monitoring assessment."""
     agent = MonitoringAgent(provider=req.provider)
@@ -182,15 +173,12 @@ async def monitor(
 @router.post("/consult", status_code=status.HTTP_200_OK)
 async def full_consultation(
     req: ConsultationRequest,
+    ctx: CurrentUserContext,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
 ) -> dict[str, Any]:
-    """Full multi-agent consultation (diagnosis + plan + monitoring).
-
-    Uses AgentOrchestrator with automatic intent detection.
-    """
+    """Full multi-agent consultation (diagnosis + plan + monitoring)."""
     orchestrator = AgentOrchestrator(provider=req.provider)
-    patient_id = req.patient_id or (str(current_user.id) if current_user else None)
+    patient_id = req.patient_id or (str(ctx.user.id) if ctx.user else None)
     return await orchestrator.route(
         user_input=req.symptoms,
         patient_id=patient_id,

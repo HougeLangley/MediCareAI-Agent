@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from typing import Annotated
 
+import jwt
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
@@ -243,6 +244,64 @@ async def switch_role(
         current_role=data.target_role,
         switched_at=datetime.now(timezone.utc),
     )
+
+
+@router.get("/guest/status")
+async def get_guest_status(
+    x_guest_token: Annotated[str | None, Header(alias="X-Guest-Token")] = None,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Query current guest session status and remaining quota."""
+    if not x_guest_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No guest token provided",
+        )
+
+    try:
+        payload = decode_token(x_guest_token)
+        if payload.get("type") != "guest":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid guest token",
+            )
+        guest_id = payload.get("sub")
+        if not guest_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid guest token",
+            )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid guest token",
+        )
+
+    result = await db.execute(
+        select(GuestSession).where(GuestSession.id == uuid.UUID(guest_id))
+    )
+    guest = result.scalar_one_or_none()
+
+    if not guest:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guest session not found",
+        )
+
+    if guest.expires_at and guest.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Guest session has expired",
+        )
+
+    remaining = max(0, guest.max_messages - guest.message_count)
+    return {
+        "interaction_count": guest.message_count,
+        "max_interactions": guest.max_messages,
+        "remaining": remaining,
+        "can_interact": remaining > 0 and not guest.is_blocked,
+        "expires_at": guest.expires_at.isoformat() if guest.expires_at else None,
+    }
 
 
 @router.get("/me", response_model=UserResponse)
