@@ -162,20 +162,29 @@ class RAGService:
             for c in context_chunks
         )
 
-        default_system = (
-            "\u4f60\u662f\u4e00\u4f4d\u4e13\u4e1a\u7684\u533b\u7597AI\u52a9\u624b\u3002\u8bf7\u57fa\u4e8e\u4ee5\u4e0b\u53c2\u8003\u6587\u732e\u56de\u7b54\u95ee\u9898\uff0c"
-            "\u5982\u679c\u53c2\u8003\u6587\u732e\u4e0d\u8db3\u4ee5\u56de\u7b54\uff0c\u8bf7\u660e\u786e\u544a\u77e5\u3002"
-            "\u56de\u7b54\u8981\u6c42\uff1a\u51c6\u786e\u3001\u7b80\u6d01\u3001\u4e13\u4e1a\u3002"
-        )
+        # Try LLM generation; fallback to context summary if no API key
+        try:
+            default_system = (
+                "\u4f60\u662f\u4e00\u4f4d\u4e13\u4e1a\u7684\u533b\u7597AI\u52a9\u624b\u3002\u8bf7\u57fa\u4e8e\u4ee5\u4e0b\u53c2\u8003\u6587\u732e\u56de\u7b54\u95ee\u9898\uff0c"
+                "\u5982\u679c\u53c2\u8003\u6587\u732e\u4e0d\u8db3\u4ee5\u56de\u7b54\uff0c\u8bf7\u660e\u786e\u544a\u77e5\u3002"
+                "\u56de\u7b54\u8981\u6c42\uff1a\u51c6\u786e\u3001\u7b80\u6d01\u3001\u4e13\u4e1a\u3002"
+            )
 
-        messages = [
-            {"role": "system", "content": system_prompt or default_system},
-            {"role": "user", "content": f"\u95ee\u9898\uff1a{query}\n\n\u53c2\u8003\u6587\u732e\uff1a\n{context}"},
-        ]
+            messages = [
+                {"role": "system", "content": system_prompt or default_system},
+                {"role": "user", "content": f"\u95ee\u9898\uff1a{query}\n\n\u53c2\u8003\u6587\u732e\uff1a\n{context}"},
+            ]
 
-        llm = LLMService(provider=provider)  # type: ignore[arg-type]
-        resp = await llm.chat(messages=messages, temperature=0.3, max_tokens=2048)
-        return resp.content
+            llm = LLMService(provider=provider)  # type: ignore[arg-type]
+            resp = await llm.chat(messages=messages, temperature=0.3, max_tokens=2048)
+            return resp.content
+        except ValueError:
+            # No API key configured — return context as-is with disclaimer
+            return (
+                "[LLM \u672a\u914d\u7f6e] \u4ee5\u4e0b\u662f\u68c0\u7d22\u5230\u7684\u76f8\u5173\u53c2\u8003\u6587\u732e\uff1a\n\n"
+                + context
+                + "\n\n\u6ce8\uff1a\u5f53\u524d\u672a\u914d\u7f6e LLM API Key\uff0c\u56e0\u6b64\u8fd4\u56de\u539f\u6587\u6458\u8981\u3002"
+            )
 
     async def query(
         self,
