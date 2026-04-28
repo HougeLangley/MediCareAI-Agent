@@ -7,21 +7,30 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
+# Use China mirrors for apt and pip ( mainland VPS optimization )
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources \
+    && sed -i 's|security.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources
+
 # Install build deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python dependencies with Tsinghua PyPI mirror
 COPY backend/pyproject.toml .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -e ".[dev]" || pip install --no-cache-dir -e "."
+RUN pip install --no-cache-dir --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    && pip install --no-cache-dir -e ".[dev]" -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    || pip install --no-cache-dir -e "." -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # --- Production stage ---
 FROM python:3.12-slim AS production
 
 WORKDIR /app
+
+# Use China mirrors for apt
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources \
+    && sed -i 's|security.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources
 
 # Runtime deps only
 RUN apt-get update && apt-get install -y --no-install-recommends \
