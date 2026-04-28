@@ -3,36 +3,218 @@
 Supports:
 - Patient/Doctor/Admin login & register
 - Guest mode token issuance
-- Role switch
+- Role switch with audit logging
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import uuid
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import CurrentUser, get_current_user
+from app.core.config import get_settings
+from app.core.security import (
+    create_access_token,
+    create_guest_token,
+    get_password_hash,
+    verify_password,
+)
 from app.db.session import get_db
+from app.models.user import GuestSession, RoleSwitchLog, User, UserRole, UserStatus
+from app.schemas.auth import (
+    GuestSessionResponse,
+    LoginResponse,
+    RoleSwitchRequest,
+    RoleSwitchResponse,
+    Token,
+    UserRegister,
+    UserResponse,
+)
 
 router = APIRouter()
+settings = get_settings()
 
 
-@router.post("/register")
-async def register(db: AsyncSession = Depends(get_db)) -> dict:
+@router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
+async def register(
+    data: UserRegister,
+    db: AsyncSession = Depends(get_db),
+) -> LoginResponse:
     """Register a new user (patient or doctor)."""
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="TODO")
+    # Check email+role uniqueness
+    result = await db.execute(
+        select(User).where(User.email == data.email, User.role == data.role)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"User with email {data.email} and role {data.role.value} already exists",
+        )
+
+    user = User(
+        email=data.email,
+        hashed_password=get_password_hash(data.password),
+        full_name=data.full_name,
+        phone=data.phone,
+        role=data.role,
+        status=UserStatus.ACTIVE,
+        license_number=data.license_number,
+        hospital=data.hospital,
+        department=data.department,
+        title=data.title,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    token = create_access_token(user.id)
+    return LoginResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=7 * 24 * 60 * 60,
+        user=UserResponse.model_validate(user),
+    )
 
 
-@router.post("/login")
-async def login(db: AsyncSession = Depends(get_db)) -> dict:
-    """Authenticate and issue JWT."""
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="TODO")
+@router.post("/login", response_model=LoginResponse)
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
+) -> LoginResponse:
+    """Authenticate and issue JWT (OAuth2 password flow)."""
+    # OAuth2 form uses username field for email
+    result = await db.execute(select(User).where(User.email == form_data.username))
+    user = result.scalar_one_or_none()
+
+    if not user or not user.hashed_password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Update last login
+    user.last_login_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    token = create_access_token(user.id)
+    return LoginResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=7 * 24 * 60 * 60,
+        user=UserResponse.model_validate(user),
+    )
 
 
-@router.post("/guest")
-async def create_guest_session(db: AsyncSession = Depends(get_db)) -> dict:
+@router.post("/guest", response_model=GuestSessionResponse, status_code=status.HTTP_201_CREATED)
+async def create_guest_session(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> GuestSessionResponse:
     """Create a time-limited guest session."""
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="TODO")
+    session_token = uuid.uuid4().hex
+    fingerprint = request.headers.get("User-Agent", "")[:255] or None
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        hours=settings.guest_session_ttl_hours
+    )
+
+    guest = GuestSession(
+        session_token=session_token,
+        fingerprint=fingerprint,
+        max_messages=settings.guest_max_messages,
+        expires_at=expires_at,
+    )
+    db.add(guest)
+    await db.commit()
+    await db.refresh(guest)
+
+    # Embed token in response — client stores it in localStorage/sessionStorage
+    token = create_guest_token(str(guest.id), fingerprint)
+
+    # Return session with token included
+    return GuestSessionResponse(
+        id=guest.id,
+        session_token=token,
+        message_count=guest.message_count,
+        max_messages=guest.max_messages,
+        expires_at=guest.expires_at,
+        created_at=guest.created_at,
+    )
 
 
-@router.post("/switch-role")
-async def switch_role(db: AsyncSession = Depends(get_db)) -> dict:
-    """Switch between patient and doctor identities."""
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="TODO")
+@router.post("/switch-role", response_model=RoleSwitchResponse)
+async def switch_role(
+    data: RoleSwitchRequest,
+    request: Request,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> RoleSwitchResponse:
+    """Switch between patient and doctor identities.
+
+    Restrictions:
+    - Cannot switch to the same role.
+    - Only PATIENT <-> DOCTOR switches are allowed.
+    - Requires both roles to be registered separately.
+    """
+    if current_user.role == data.target_role:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot switch to the same role",
+        )
+
+    if data.target_role not in (UserRole.PATIENT, UserRole.DOCTOR):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only switch between patient and doctor roles",
+        )
+
+    # Check if target role account exists for this email
+    result = await db.execute(
+        select(User).where(
+            User.email == current_user.email,
+            User.role == data.target_role,
+        )
+    )
+    target_user = result.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No {data.target_role.value} account found for this email. Please register first.",
+        )
+
+    # Log the switch
+    log = RoleSwitchLog(
+        user_id=current_user.id,
+        from_role=current_user.role,
+        to_role=data.target_role,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("User-Agent"),
+    )
+    db.add(log)
+    await db.commit()
+
+    # Issue new token for the target identity
+    new_token = create_access_token(target_user.id)
+
+    return RoleSwitchResponse(
+        new_token=new_token,
+        previous_role=current_user.role,
+        current_role=data.target_role,
+        switched_at=datetime.now(timezone.utc),
+    )
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: CurrentUser) -> UserResponse:
+    """Return current authenticated user profile."""
+    return UserResponse.model_validate(current_user)
