@@ -114,8 +114,8 @@ class RAGService:
 
         Returns ranked results with relevance scores.
         """
-        # Build query text for tsquery
-        tsquery = " & ".join(query.split())
+        # Use plainto_tsquery for natural language query parsing
+        tsquery_expr = func.plainto_tsquery("simple", query)
 
         # Search chunks with ranking
         stmt = select(
@@ -127,12 +127,10 @@ class RAGService:
             Document.doc_type,
             func.ts_rank(
                 DocumentChunk.search_vector,
-                func.to_tsquery("simple", tsquery),
+                tsquery_expr,
             ).label("rank"),
         ).join(Document).where(
-            DocumentChunk.search_vector.op("@@")(
-                func.to_tsquery("simple", tsquery)
-            )
+            DocumentChunk.search_vector.op("@@")(tsquery_expr)
         )
 
         if doc_type:
