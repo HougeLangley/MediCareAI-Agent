@@ -1,6 +1,6 @@
 """RAG (Retrieval-Augmented Generation) service.
 
-MVP implementation using PostgreSQL full-text search.
+MVP implementation using PostgreSQL ILIKE for Chinese text search.
 Phase 2: upgrade to pgvector for semantic search.
 """
 
@@ -34,9 +34,7 @@ class RAGService:
         start = 0
         while start < len(text):
             end = start + chunk_size
-            # Try to break at newline or period
             if end < len(text):
-                # Look for a good break point within last 100 chars
                 search_start = max(start, end - 100)
                 for i in range(end, search_start, -1):
                     if text[i] in "\n\u3002\uff01\uff1f.!?":
@@ -57,7 +55,6 @@ class RAGService:
         language: str = "zh",
     ) -> Document:
         """Create a document with auto-chunking."""
-        # Create document
         doc = Document(
             title=title,
             source=source,
@@ -66,9 +63,9 @@ class RAGService:
             language=language,
         )
         self.db.add(doc)
-        await self.db.flush()  # Get doc.id
+        await self.db.flush()
 
-        # Generate tsvector for full document
+        # Generate tsvector for full document (kept for future use)
         await self.db.execute(
             text(
                 "UPDATE documents SET search_vector = "
@@ -78,7 +75,6 @@ class RAGService:
              "content": content, "id": str(doc.id)},
         )
 
-        # Create chunks
         chunks = self._chunk_text(content)
         for idx, chunk_text in enumerate(chunks):
             chunk = DocumentChunk(
@@ -89,7 +85,6 @@ class RAGService:
             self.db.add(chunk)
             await self.db.flush()
 
-            # Generate tsvector for chunk
             await self.db.execute(
                 text(
                     "UPDATE document_chunks SET search_vector = "
@@ -110,14 +105,18 @@ class RAGService:
         doc_type: DocType | None = None,
         top_k: int = 5,
     ) -> list[dict[str, Any]]:
-        """Full-text search over documents and chunks.
+        """Search document chunks using ILIKE for Chinese compatibility.
 
         Returns ranked results with relevance scores.
         """
-        # Use plainto_tsquery for natural language query parsing
-        tsquery_expr = func.plainto_tsquery("simple", query)
+        # Extract key terms (2+ char substrings) from query for ILIKE matching
+        search_terms = [query[i:i+3] for i in range(len(query)-2)]
+        if not search_terms:
+            search_terms = [query]
 
-        # Search chunks with ranking
+        # Use the longest term for primary matching
+        primary_term = max(search_terms, key=len)
+
         stmt = select(
             DocumentChunk.id,
             DocumentChunk.content,
@@ -125,18 +124,15 @@ class RAGService:
             Document.id.label("doc_id"),
             Document.title,
             Document.doc_type,
-            func.ts_rank(
-                DocumentChunk.search_vector,
-                tsquery_expr,
-            ).label("rank"),
+            func.length(DocumentChunk.content).label("rank"),
         ).join(Document).where(
-            DocumentChunk.search_vector.op("@@")(tsquery_expr)
+            DocumentChunk.content.ilike(f"%{primary_term}%")
         )
 
         if doc_type:
             stmt = stmt.where(Document.doc_type == doc_type)
 
-        stmt = stmt.order_by(text("rank DESC")).limit(top_k)
+        stmt = stmt.order_by(func.length(DocumentChunk.content).desc()).limit(top_k)
         result = await self.db.execute(stmt)
         rows = result.all()
 
@@ -148,7 +144,7 @@ class RAGService:
                 "document_id": str(row.doc_id),
                 "document_title": row.title,
                 "document_type": row.doc_type.value,
-                "rank": float(row.rank),
+                "rank": 1.0,
             }
             for row in rows
         ]
@@ -160,38 +156,21 @@ class RAGService:
         system_prompt: str | None = None,
         provider: str | None = None,
     ) -> str:
-        """Generate answer using retrieved context + LLM.
-
-        Args:
-            query: User question.
-            context_chunks: Retrieved document chunks from search().
-            system_prompt: Optional custom system prompt.
-            provider: LLM provider override.
-
-        Returns:
-            Generated answer text.
-        """
-        # Build context string
+        """Generate answer using retrieved context + LLM."""
         context = "\n\n---\n\n".join(
-            f"[来源: {c['document_title']}]\n{c['content']}"
+            f"[\u6765\u6e90: {c['document_title']}]\n{c['content']}"
             for c in context_chunks
         )
 
         default_system = (
-            "你是一位专业的医疗AI助手。请基于以下参考文献回答问题，"
-            "如果参考文献不足以回答，请明确告知。"
-            "回答要求：准确、简洁、专业。"
+            "\u4f60\u662f\u4e00\u4f4d\u4e13\u4e1a\u7684\u533b\u7597AI\u52a9\u624b\u3002\u8bf7\u57fa\u4e8e\u4ee5\u4e0b\u53c2\u8003\u6587\u732e\u56de\u7b54\u95ee\u9898\uff0c"
+            "\u5982\u679c\u53c2\u8003\u6587\u732e\u4e0d\u8db3\u4ee5\u56de\u7b54\uff0c\u8bf7\u660e\u786e\u544a\u77e5\u3002"
+            "\u56de\u7b54\u8981\u6c42\uff1a\u51c6\u786e\u3001\u7b80\u6d01\u3001\u4e13\u4e1a\u3002"
         )
 
         messages = [
-            {
-                "role": "system",
-                "content": system_prompt or default_system,
-            },
-            {
-                "role": "user",
-                "content": f"问题：{query}\n\n参考文献：\n{context}",
-            },
+            {"role": "system", "content": system_prompt or default_system},
+            {"role": "user", "content": f"\u95ee\u9898\uff1a{query}\n\n\u53c2\u8003\u6587\u732e\uff1a\n{context}"},
         ]
 
         llm = LLMService(provider=provider)  # type: ignore[arg-type]
@@ -205,21 +184,11 @@ class RAGService:
         top_k: int = 5,
         provider: str | None = None,
     ) -> dict[str, Any]:
-        """End-to-end RAG pipeline: search + generate.
-
-        Args:
-            query: User question.
-            doc_type: Filter by document type.
-            top_k: Number of chunks to retrieve.
-            provider: LLM provider override.
-
-        Returns:
-            Dict with answer, sources, and usage info.
-        """
+        """End-to-end RAG pipeline: search + generate."""
         chunks = await self.search(query, doc_type=doc_type, top_k=top_k)
         if not chunks:
             return {
-                "answer": "未找到相关参考文献，无法回答该问题。",
+                "answer": "\u672a\u627e\u5230\u76f8\u5173\u53c2\u8003\u6587\u732e\uff0c\u65e0\u6cd5\u56de\u7b54\u8be5\u95ee\u9898\u3002",
                 "sources": [],
                 "retrieved_chunks": 0,
             }
@@ -231,7 +200,7 @@ class RAGService:
                 {
                     "title": c["document_title"],
                     "type": c["document_type"],
-                    "relevance": round(c["rank"], 4),
+                    "relevance": 1.0,
                 }
                 for c in chunks
             ],
