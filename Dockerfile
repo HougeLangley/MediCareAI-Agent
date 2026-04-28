@@ -47,6 +47,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code
 COPY backend/app ./app
 COPY backend/pyproject.toml .
+COPY backend/alembic.ini ./alembic.ini
 
 # Non-root user
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser \
