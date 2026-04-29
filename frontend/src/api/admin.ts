@@ -53,21 +53,16 @@ export async function createLLMProvider(data: LLMProviderCreate): Promise<LLMPro
   return handleResponse<LLMProvider>(res);
 }
 
-export async function getLLMProvider(provider: string, platform?: string | null): Promise<LLMProvider> {
-  const url = new URL(`${API_BASE}/admin/llm-providers/${provider}`, window.location.origin);
-  if (platform) url.searchParams.set('platform', platform);
-  const res = await fetch(url.toString(), { headers: authHeaders() });
+export async function getLLMProvider(id: string): Promise<LLMProvider> {
+  const res = await fetch(`${API_BASE}/admin/llm-providers/${id}`, { headers: authHeaders() });
   return handleResponse<LLMProvider>(res);
 }
 
 export async function updateLLMProvider(
-  provider: string,
-  data: LLMProviderUpdate,
-  platform?: string | null
+  id: string,
+  data: LLMProviderUpdate
 ): Promise<LLMProvider> {
-  const url = new URL(`${API_BASE}/admin/llm-providers/${provider}`, window.location.origin);
-  if (platform) url.searchParams.set('platform', platform);
-  const res = await fetch(url.toString(), {
+  const res = await fetch(`${API_BASE}/admin/llm-providers/${id}`, {
     method: 'PATCH',
     headers: jsonHeaders(),
     body: JSON.stringify(data),
@@ -75,20 +70,16 @@ export async function updateLLMProvider(
   return handleResponse<LLMProvider>(res);
 }
 
-export async function deleteLLMProvider(provider: string, platform?: string | null): Promise<void> {
-  const url = new URL(`${API_BASE}/admin/llm-providers/${provider}`, window.location.origin);
-  if (platform) url.searchParams.set('platform', platform);
-  const res = await fetch(url.toString(), {
+export async function deleteLLMProvider(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/llm-providers/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
   return handleResponse<void>(res);
 }
 
-export async function testLLMProvider(provider: string, platform?: string | null): Promise<ProviderTestResult> {
-  const url = new URL(`${API_BASE}/admin/llm-providers/${provider}/test`, window.location.origin);
-  if (platform) url.searchParams.set('platform', platform);
-  const res = await fetch(url.toString(), {
+export async function testLLMProvider(id: string): Promise<ProviderTestResult> {
+  const res = await fetch(`${API_BASE}/admin/llm-providers/${id}/test`, {
     method: 'POST',
     headers: authHeaders(),
   });

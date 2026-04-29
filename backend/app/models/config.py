@@ -52,8 +52,8 @@ class LLMProviderConfig(Base):
     )
 
     __table_args__ = (
-        # One provider per platform (NULL = global)
-        UniqueConstraint("provider", "platform", name="uq_provider_platform"),
+        # One provider per platform per model_type (NULL = global)
+        UniqueConstraint("provider", "platform", "model_type", name="uq_provider_platform_model_type"),
     )
 
 

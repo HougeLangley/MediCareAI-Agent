@@ -78,18 +78,19 @@ async def create_llm_provider(
 
     The API key is encrypted before storage.
     """
-    # Check (provider, platform) uniqueness
+    # Check (provider, platform, model_type) uniqueness
     existing = await db.execute(
         select(LLMProviderConfig).where(
             LLMProviderConfig.provider == data.provider,
             LLMProviderConfig.platform == data.platform,
+            LLMProviderConfig.model_type == data.model_type,
         )
     )
     if existing.scalar_one_or_none():
         platform_label = data.platform or "global"
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Provider '{data.provider}' for platform '{platform_label}' already exists",
+            detail=f"Provider '{data.provider}' for platform '{platform_label}' with model type '{data.model_type}' already exists",
         )
 
     # Encrypt API key before storage
@@ -99,6 +100,7 @@ async def create_llm_provider(
         stmt = select(LLMProviderConfig).where(
             LLMProviderConfig.is_default == True,
             LLMProviderConfig.platform == data.platform,
+            LLMProviderConfig.model_type == data.model_type,
         )
         result = await db.execute(stmt)
         for conf in result.scalars():
@@ -121,33 +123,28 @@ async def create_llm_provider(
     return _config_to_response(config)
 
 
-@router.get("/llm-providers/{provider}", response_model=LLMProviderConfigResponse)
+@router.get("/llm-providers/{provider_id}", response_model=LLMProviderConfigResponse)
 async def get_llm_provider(
-    provider: str,
-    platform: Annotated[str | None, Query(description="Platform scope (web/miniapp/ios/android). Omit for global.")] = None,
+    provider_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get a specific LLM provider configuration."""
     result = await db.execute(
-        select(LLMProviderConfig).where(
-            LLMProviderConfig.provider == provider,
-            LLMProviderConfig.platform == platform,
-        )
+        select(LLMProviderConfig).where(LLMProviderConfig.id == provider_id)
     )
     config = result.scalar_one_or_none()
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Provider '{provider}' (platform={platform or 'global'}) not found",
+            detail=f"Provider config '{provider_id}' not found",
         )
     return _config_to_response(config)
 
 
-@router.patch("/llm-providers/{provider}", response_model=LLMProviderConfigResponse)
+@router.patch("/llm-providers/{provider_id}", response_model=LLMProviderConfigResponse)
 async def update_llm_provider(
-    provider: str,
+    provider_id: str,
     data: LLMProviderConfigUpdate,
-    platform: Annotated[str | None, Query(description="Platform scope (web/miniapp/ios/android). Omit for global.")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Update an LLM provider configuration.
@@ -155,16 +152,13 @@ async def update_llm_provider(
     If api_key is provided, it is encrypted before storage.
     """
     result = await db.execute(
-        select(LLMProviderConfig).where(
-            LLMProviderConfig.provider == provider,
-            LLMProviderConfig.platform == platform,
-        )
+        select(LLMProviderConfig).where(LLMProviderConfig.id == provider_id)
     )
     config = result.scalar_one_or_none()
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Provider '{provider}' (platform={platform or 'global'}) not found",
+            detail=f"Provider config '{provider_id}' not found",
         )
 
     update_data = data.model_dump(exclude_unset=True)
@@ -182,27 +176,63 @@ async def update_llm_provider(
     return _config_to_response(config)
 
 
-@router.delete("/llm-providers/{provider}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/llm-providers/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_llm_provider(
-    provider: str,
-    platform: Annotated[str | None, Query(description="Platform scope (web/miniapp/ios/android). Omit for global.")] = None,
+    provider_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete an LLM provider configuration."""
     result = await db.execute(
-        select(LLMProviderConfig).where(
-            LLMProviderConfig.provider == provider,
-            LLMProviderConfig.platform == platform,
-        )
+        select(LLMProviderConfig).where(LLMProviderConfig.id == provider_id)
     )
     config = result.scalar_one_or_none()
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Provider '{provider}' (platform={platform or 'global'}) not found",
+            detail=f"Provider config '{provider_id}' not found",
         )
     await db.delete(config)
     await db.commit()
+
+
+# ─── LLM Provider Testing ───────────────────────────────────────────────
+
+
+@router.post("/llm-providers/{provider_id}/test")
+async def test_llm_provider(
+    provider_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Test LLM provider connectivity by listing models."""
+    result = await db.execute(
+        select(LLMProviderConfig).where(LLMProviderConfig.id == provider_id)
+    )
+    config = result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Provider config '{provider_id}' not found",
+        )
+    try:
+        service = LLMService(provider=config.provider, platform=config.platform, db=db)
+        result = await service.health_check()
+        return {
+            "provider": config.provider,
+            "platform": config.platform or "global",
+            "status": result.get("status", "unknown"),
+            "detail": result.get("detail") if result.get("status") != "ok" else None,
+            "available_models": result.get("available_models", []),
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Provider test failed: {e}",
+        )
 
 
 # ─── System Settings ───────────────────────────────────────────
@@ -333,38 +363,6 @@ async def delete_setting(
         )
     await db.delete(setting)
     await db.commit()
-
-
-# ─── LLM Provider Testing ───────────────────────────────────────────────
-
-
-@router.post("/llm-providers/{provider}/test")
-async def test_llm_provider(
-    provider: str,
-    platform: Annotated[str | None, Query(description="Platform scope")] = None,
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """Test LLM provider connectivity by listing models."""
-    try:
-        service = LLMService(provider=provider, platform=platform, db=db)
-        result = await service.health_check()
-        return {
-            "provider": provider,
-            "platform": platform or "global",
-            "status": result.get("status", "unknown"),
-            "detail": result.get("detail") if result.get("status") != "ok" else None,
-            "available_models": result.get("available_models", []),
-        }
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Provider test failed: {e}",
-        )
 
 
 # ─── Dashboard Stats ───────────────────────────────────────────────────────

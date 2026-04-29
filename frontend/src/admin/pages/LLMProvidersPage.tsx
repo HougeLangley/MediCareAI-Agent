@@ -203,7 +203,7 @@ export default function LLMProvidersPage() {
           is_default: form.is_default,
         };
         if (form.api_key) update.api_key = form.api_key;
-        await updateLLMProvider(editingProvider.provider, update, editingProvider.platform);
+        await updateLLMProvider(editingProvider.id, update);
       } else {
         await createLLMProvider(form);
       }
@@ -217,7 +217,7 @@ export default function LLMProvidersPage() {
   const handleDelete = async (p: LLMProvider) => {
     if (!window.confirm(`确定删除 ${p.name} （${p.provider}）？`)) return;
     try {
-      await deleteLLMProvider(p.provider, p.platform);
+      await deleteLLMProvider(p.id);
       load();
     } catch (e: unknown) {
       setError((e as Error).message);
@@ -228,7 +228,7 @@ export default function LLMProvidersPage() {
     const key = `${p.provider}-${p.platform || 'global'}`;
     setTestingId(key);
     try {
-      const result = await testLLMProvider(p.provider, p.platform);
+      const result = await testLLMProvider(p.id);
       setTestResults((prev) => ({
         ...prev,
         [key]: { status: result.status, msg: result.detail || `模型: ${result.available_models?.join(', ') || 'N/A'}` },
