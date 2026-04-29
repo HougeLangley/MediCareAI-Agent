@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box, Button, Card, CardContent, TextField, Typography, Alert, CircularProgress,
 } from '@mui/material';
@@ -10,7 +9,6 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,7 +16,8 @@ export default function AdminLoginPage() {
     setLoading(true);
     try {
       await adminLogin(email, password);
-      navigate('/admin');
+      // Force reload to let AdminLayout re-check auth state
+      window.location.reload();
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {

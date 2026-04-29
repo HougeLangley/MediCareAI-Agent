@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box, Button, Card, CardContent, TextField, Typography, Alert, CircularProgress,
 } from '@mui/material';
@@ -11,7 +10,6 @@ export default function ChangePasswordPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +28,7 @@ export default function ChangePasswordPage() {
     try {
       await changePassword({ new_password: newPassword });
       setSuccess(true);
-      setTimeout(() => navigate('/admin'), 1500);
+      setTimeout(() => window.location.reload(), 1500);
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
