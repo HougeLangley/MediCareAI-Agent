@@ -39,39 +39,32 @@ const MODEL_TYPE_OPTIONS = [
   { value: 'vision', label: '医学影像 — 影像专用分析模型' },
 ];
 
-// 官方 API 配置参考（OpenAI 兼容格式）
+// 官方 API 配置参考（OpenAI 兼容格式，聚焦国内模型）
 const PROVIDER_GUIDES: Record<string, { baseUrl: string; models: string; note?: string }> = {
   moonshot: {
     baseUrl: 'https://api.moonshot.cn/v1',
     models: 'moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k',
-    note: 'Kimi 模型本身支持多模态，无需单独配置 vision 模型',
-  },
-  openai: {
-    baseUrl: 'https://api.openai.com/v1',
-    models: 'gpt-4o, gpt-4o-mini, gpt-4-turbo, text-embedding-3-small',
+    note: 'Kimi 模型支持文本+图片多模态理解',
   },
   deepseek: {
     baseUrl: 'https://api.deepseek.com/v1',
     models: 'deepseek-chat, deepseek-reasoner',
+    note: '推理能力强，适合复杂诊断场景',
   },
   zhipu: {
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4/',
-    models: 'glm-4, glm-4-flash, glm-4v (多模态)',
+    models: 'glm-4, glm-4v (多模态), glm-4-flash',
+    note: 'GLM-4V 支持图片理解，Flash 版本成本低',
   },
   siliconflow: {
     baseUrl: 'https://api.siliconflow.cn/v1',
-    models: 'BAAI/bge-m3 (embedding), deepseek-ai/DeepSeek-V3',
-    note: '矽基流动提供大量开源模型，包含 embedding 和 LLM',
-  },
-  cohere: {
-    baseUrl: 'https://api.cohere.com/v1',
-    models: 'rerank-multilingual-v3.0 (reranking)',
-    note: 'reranking 专用，需单独配置',
+    models: 'BAAI/bge-m3 (embedding), deepseek-ai/DeepSeek-V2.5, Qwen/Qwen2.5-72B-Instruct, THUDM/glm-4-9b-chat',
+    note: '矽基流动聚合了国内外优秀开源模型，可作为备选方案',
   },
   jina: {
     baseUrl: 'https://api.jina.ai/v1',
     models: 'jina-reranker-v2-base-multilingual (reranking)',
-    note: 'reranking 专用，需单独配置',
+    note: '重排序专用，支持多语言，提升 RAG 精度',
   },
 };
 
@@ -285,7 +278,7 @@ export default function LLMProvidersPage() {
               disabled={!!editingProvider}
               required
               size="small"
-              helperText="如：moonshot, openai, deepseek, zhipu, siliconflow, cohere, jina"
+              helperText="如：moonshot, deepseek, zhipu, siliconflow, jina"
             />
             {providerGuide && !editingProvider && (
               <Alert severity="info" icon={false} sx={{ py: 0.5 }}>
