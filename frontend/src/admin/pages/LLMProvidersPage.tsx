@@ -3,7 +3,7 @@ import {
   Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
   Typography, Switch, FormControlLabel, Tooltip, CircularProgress, Alert, Paper,
-  Select, MenuItem, FormControl, InputLabel,
+  Select, MenuItem, FormControl, InputLabel, Collapse,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -29,15 +29,51 @@ const emptyForm: LLMProviderCreate = {
 };
 
 const MODEL_TYPE_OPTIONS = [
-  { value: 'diagnosis', label: '诊断/对话 — 通用大模型（如 Kimi/GPT/DeepSeek）' },
-  { value: 'multimodal', label: '多模态 — 支持图片理解（如 GPT-4o/Kimi-Vision）' },
-  { value: 'embedding', label: '向量嵌入 — 文本向量化（如 BGE-M3/text-embedding-3）' },
-  { value: 'reranking', label: '重排序 — RAG 结果精排（如 Cohere/Jina Reranker）' },
-  { value: 'extraction', label: '结构化提取 — 文档字段解析（如 Kimi/GPT-4）' },
-  { value: 'summarization', label: '摘要 — 文本摘要生成（如 Kimi/GLM）' },
-  { value: 'classify', label: '分类/路由 — 文档分类/意图识别（如 GLM/ERNIE）' },
-  { value: 'vision', label: '医学影像 — 影像专用分析（如 Lingshu-32B）' },
+  { value: 'diagnosis', label: '诊断/对话 — 通用大语言模型' },
+  { value: 'multimodal', label: '多模态 — 支持图文理解的大模型' },
+  { value: 'embedding', label: '向量嵌入 — 文本向量化专用模型' },
+  { value: 'reranking', label: '重排序 — RAG 结果精排专用模型' },
+  { value: 'extraction', label: '结构化提取 — 文档关键字段解析' },
+  { value: 'summarization', label: '摘要 — 文本摘要生成' },
+  { value: 'classify', label: '分类/路由 — 文档分类与意图识别' },
+  { value: 'vision', label: '医学影像 — 影像专用分析模型' },
 ];
+
+// 官方 API 配置参考（OpenAI 兼容格式）
+const PROVIDER_GUIDES: Record<string, { baseUrl: string; models: string; note?: string }> = {
+  moonshot: {
+    baseUrl: 'https://api.moonshot.cn/v1',
+    models: 'moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k',
+    note: 'Kimi 模型本身支持多模态，无需单独配置 vision 模型',
+  },
+  openai: {
+    baseUrl: 'https://api.openai.com/v1',
+    models: 'gpt-4o, gpt-4o-mini, gpt-4-turbo, text-embedding-3-small',
+  },
+  deepseek: {
+    baseUrl: 'https://api.deepseek.com/v1',
+    models: 'deepseek-chat, deepseek-reasoner',
+  },
+  zhipu: {
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4/',
+    models: 'glm-4, glm-4-flash, glm-4v (多模态)',
+  },
+  siliconflow: {
+    baseUrl: 'https://api.siliconflow.cn/v1',
+    models: 'BAAI/bge-m3 (embedding), deepseek-ai/DeepSeek-V3',
+    note: '矽基流动提供大量开源模型，包含 embedding 和 LLM',
+  },
+  cohere: {
+    baseUrl: 'https://api.cohere.com/v1',
+    models: 'rerank-multilingual-v3.0 (reranking)',
+    note: 'reranking 专用，需单独配置',
+  },
+  jina: {
+    baseUrl: 'https://api.jina.ai/v1',
+    models: 'jina-reranker-v2-base-multilingual (reranking)',
+    note: 'reranking 专用，需单独配置',
+  },
+};
 
 export default function LLMProvidersPage() {
   const [providers, setProviders] = useState<LLMProvider[]>([]);
@@ -48,6 +84,9 @@ export default function LLMProvidersPage() {
   const [form, setForm] = useState<LLMProviderCreate>(emptyForm);
   const [testResults, setTestResults] = useState<Record<string, { status: string; msg?: string }>>({});
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
+
+  const providerGuide = PROVIDER_GUIDES[form.provider.toLowerCase()];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -246,7 +285,26 @@ export default function LLMProvidersPage() {
               disabled={!!editingProvider}
               required
               size="small"
+              helperText="如：moonshot, openai, deepseek, zhipu, siliconflow, cohere, jina"
             />
+            {providerGuide && !editingProvider && (
+              <Alert severity="info" icon={false} sx={{ py: 0.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  ⚠️ 提示：检测到 {form.provider} 官方配置
+                </Typography>
+                <Typography variant="caption" component="div">
+                  Base URL: {providerGuide.baseUrl}
+                </Typography>
+                <Typography variant="caption" component="div">
+                  推荐模型: {providerGuide.models}
+                </Typography>
+                {providerGuide.note && (
+                  <Typography variant="caption" component="div" color="warning.main">
+                    {providerGuide.note}
+                  </Typography>
+                )}
+              </Alert>
+            )}
             <TextField
               label="平台（留空=global）"
               value={form.platform || ''}
@@ -304,6 +362,36 @@ export default function LLMProvidersPage() {
                 control={<Switch checked={form.is_default} onChange={(e) => setForm({ ...form, is_default: e.target.checked })} />}
                 label="设为默认"
               />
+            </Box>
+            <Box>
+              <Button size="small" onClick={() => setShowGuide(!showGuide)} sx={{ textTransform: 'none' }}>
+                {showGuide ? '隐藏' : '查看'}完整配置指南
+              </Button>
+              <Collapse in={showGuide}>
+                <Alert severity="info" icon={false} sx={{ mt: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                    📖 官方 API 配置参考（OpenAI 兼容格式）
+                  </Typography>
+                  {Object.entries(PROVIDER_GUIDES).map(([key, guide]) => (
+                    <Box key={key} sx={{ mb: 1 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
+                        {key}:
+                      </Typography>
+                      <Typography variant="caption" component="div">
+                        Base URL: {guide.baseUrl}
+                      </Typography>
+                      <Typography variant="caption" component="div">
+                        模型: {guide.models}
+                      </Typography>
+                      {guide.note && (
+                        <Typography variant="caption" component="div" color="warning.main">
+                          注意: {guide.note}
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
+                </Alert>
+              </Collapse>
             </Box>
           </Box>
         </DialogContent>
