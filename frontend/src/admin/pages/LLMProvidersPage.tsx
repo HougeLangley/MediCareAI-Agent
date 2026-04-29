@@ -53,12 +53,16 @@ const PROVIDER_GUIDES: Record<string, ProviderGuide> = {
     name: 'Moonshot AI (Kimi)',
     baseUrl: 'https://api.moonshot.cn/v1',
     models: [
-      { id: 'moonshot-v1-8k', label: 'moonshot-v1-8k（8K 上下文，通用对话）', type: 'diagnosis' },
-      { id: 'moonshot-v1-32k', label: 'moonshot-v1-32k（32K 上下文，长文本）', type: 'diagnosis' },
-      { id: 'moonshot-v1-128k', label: 'moonshot-v1-128k（128K 上下文，超长文档）', type: 'diagnosis' },
-      { id: 'moonshot-v1-8k-vision-preview', label: 'moonshot-v1-8k-vision-preview（多模态，支持图片）', type: 'multimodal' },
+      { id: 'kimi-2.5', label: 'kimi-2.5（推荐，长上下文通用模型）', type: 'diagnosis' },
+      { id: 'kimi-2.6', label: 'kimi-2.6（推荐，最新旗舰模型）', type: 'diagnosis' },
     ],
-    notes: ['全部模型支持 OpenAI 兼容 API', 'API Key 在 platform.moonshot.cn 申请', '默认流量限制 60 RPM'],
+    notes: [
+      '支持 OpenAI 兼容 API 格式',
+      'Base URL: https://api.moonshot.cn/v1',
+      'API Key 在 https://platform.moonshot.cn 申请',
+      '默认流量限制 60 RPM',
+      '如需旧版 moonshot-v1 系列模型可手动输入',
+    ],
   },
   deepseek: {
     name: 'DeepSeek',
