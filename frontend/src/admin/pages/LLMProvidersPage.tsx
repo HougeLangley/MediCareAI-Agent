@@ -29,14 +29,14 @@ const emptyForm: LLMProviderCreate = {
 };
 
 const MODEL_TYPE_OPTIONS = [
-  { value: 'diagnosis', label: '诊断/对话 (diagnosis)' },
-  { value: 'multimodal', label: '多模态 (multimodal)' },
-  { value: 'embedding', label: '向量嵌入 (embedding)' },
-  { value: 'reranking', label: '重排序 (reranking)' },
-  { value: 'extraction', label: '结构化提取 (extraction)' },
-  { value: 'summarization', label: '摘要 (summarization)' },
-  { value: 'classify', label: '分类/路由 (classify)' },
-  { value: 'vision', label: '医学影像 (vision)' },
+  { value: 'diagnosis', label: '诊断/对话 — 通用大模型（如 Kimi/GPT/DeepSeek）' },
+  { value: 'multimodal', label: '多模态 — 支持图片理解（如 GPT-4o/Kimi-Vision）' },
+  { value: 'embedding', label: '向量嵌入 — 文本向量化（如 BGE-M3/text-embedding-3）' },
+  { value: 'reranking', label: '重排序 — RAG 结果精排（如 Cohere/Jina Reranker）' },
+  { value: 'extraction', label: '结构化提取 — 文档字段解析（如 Kimi/GPT-4）' },
+  { value: 'summarization', label: '摘要 — 文本摘要生成（如 Kimi/GLM）' },
+  { value: 'classify', label: '分类/路由 — 文档分类/意图识别（如 GLM/ERNIE）' },
+  { value: 'vision', label: '医学影像 — 影像专用分析（如 Lingshu-32B）' },
 ];
 
 export default function LLMProvidersPage() {
