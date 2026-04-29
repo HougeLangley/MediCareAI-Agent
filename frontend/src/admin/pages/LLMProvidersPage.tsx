@@ -101,20 +101,6 @@ const PROVIDER_GUIDES: Record<string, ProviderGuide> = {
     ],
     notes: ['支持 OpenAI 兼容 API', 'API Key 在 open.bigmodel.cn 申请', 'glm-4v 支持图片输入'],
   },
-  siliconflow: {
-    name: '矽基流动 (SiliconFlow)',
-    baseUrl: 'https://api.siliconflow.cn/v1',
-    models: [
-      { id: 'BAAI/bge-m3', label: 'BAAI/bge-m3（顶级多语言 embedding）', type: 'embedding' },
-      { id: 'BAAI/bge-large-zh-v1.5', label: 'BAAI/bge-large-zh-v1.5（中文向量模型）', type: 'embedding' },
-      { id: 'deepseek-ai/DeepSeek-V2.5', label: 'DeepSeek-V2.5（对话模型）', type: 'diagnosis' },
-      { id: 'deepseek-ai/DeepSeek-R1', label: 'DeepSeek-R1（推理模型）', type: 'diagnosis' },
-      { id: 'Qwen/Qwen2.5-72B-Instruct', label: 'Qwen2.5-72B-Instruct（通义千问 72B）', type: 'diagnosis' },
-      { id: 'Qwen/Qwen2.5-7B-Instruct', label: 'Qwen2.5-7B-Instruct（通义千问 7B 轻量版）', type: 'diagnosis' },
-      { id: 'THUDM/glm-4-9b-chat', label: 'glm-4-9b-chat（智谱 GLM-4 9B）', type: 'diagnosis' },
-    ],
-    notes: ['支持 OpenAI 兼容 API', 'API Key 在 cloud.siliconflow.cn 申请', '聚合国内外优秀开源模型', 'embedding 推荐 BAAI/bge-m3'],
-  },
   jina: {
     name: 'Jina AI',
     baseUrl: 'https://api.jina.ai/v1',
@@ -124,6 +110,34 @@ const PROVIDER_GUIDES: Record<string, ProviderGuide> = {
       { id: 'jina-colbert-v2', label: 'jina-colbert-v2（ColBERT 重排序）', type: 'reranking' },
     ],
     notes: ['支持 OpenAI 兼容 API', 'API Key 在 jina.ai 申请', '专注 RAG 增强', '免费额度高'],
+  },
+  'custom-openai': {
+    name: '自定义（OpenAI 兼容）',
+    baseUrl: 'https://api.example.com/v1',
+    models: [
+      { id: 'gpt-4o', label: 'gpt-4o（OpenAI 多模态旗舰）', type: 'diagnosis' },
+      { id: 'gpt-4o-mini', label: 'gpt-4o-mini（OpenAI 轻量版）', type: 'diagnosis' },
+    ],
+    notes: [
+      '兼容 OpenAI API 格式（/v1/chat/completions）',
+      'Base URL 需填写为 OpenAI 兼容格式',
+      '适用于各类第三方 OpenAI 兼容平台',
+      '模型名称请按实际平台填写',
+    ],
+  },
+  'custom-anthropic': {
+    name: '自定义（Anthropic 兼容）',
+    baseUrl: 'https://api.anthropic.com/v1',
+    models: [
+      { id: 'claude-3-5-sonnet-20241022', label: 'claude-3-5-sonnet（Anthropic 多模态）', type: 'diagnosis' },
+      { id: 'claude-3-opus-20240229', label: 'claude-3-opus（Anthropic 最强推理）', type: 'diagnosis' },
+    ],
+    notes: [
+      '⚠️ 注意：Anthropic 格式与 OpenAI 不同',
+      '后端需额外适配 /v1/messages 接口',
+      '当前版本可能无法直接调用',
+      '模型名称请按实际平台填写',
+    ],
   },
 };
 
@@ -356,7 +370,7 @@ export default function LLMProvidersPage() {
                   label="提供商标识"
                   required
                   size="small"
-                  helperText="输入 moonshot / opencode / zhipu / siliconflow / jina 自动提示"
+                  helperText="输入 moonshot / opencode / zhipu / jina 自动提示，或输入 custom-openai / custom-anthropic 添加自定义兼容平台"
                 />
               )}
             />
