@@ -163,13 +163,13 @@ export async function adminLogin(email: string, password: string): Promise<{
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.detail || json.message || 'Login failed');
-  localStorage.setItem('access_token', json.data.access_token);
-  if (json.data.password_change_required) {
+  localStorage.setItem('access_token', json.access_token);
+  if (json.password_change_required) {
     localStorage.setItem('password_change_required', 'true');
   } else {
     localStorage.removeItem('password_change_required');
   }
-  return json.data;
+  return json;
 }
 
 export async function changePassword(data: { old_password?: string; new_password: string }): Promise<void> {
@@ -195,7 +195,7 @@ export async function getMe(): Promise<{
   const res = await fetch(`${API_BASE}/auth/me`, { headers: authHeaders() });
   const json = await res.json();
   if (!res.ok) throw new Error(json.detail || 'Failed to get user info');
-  return json.data;
+  return json;
 }
 
 export function logout(): void {
