@@ -54,6 +54,9 @@ class User(Base):
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Security flags
+    password_change_required: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     # Relationships
     role_switches: Mapped[list["RoleSwitchLog"]] = relationship(
         "RoleSwitchLog", back_populates="user", lazy="selectin"

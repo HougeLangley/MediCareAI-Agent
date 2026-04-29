@@ -151,15 +151,50 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
 // ─── Auth helpers ───────────────────────────────────────────
 
-export async function adminLogin(email: string, password: string): Promise<{ access_token: string; token_type: string }> {
+export async function adminLogin(email: string, password: string): Promise<{
+  access_token: string;
+  token_type: string;
+  password_change_required?: boolean;
+}> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ username: email, password }),
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.detail || json.message || 'Login failed');
   localStorage.setItem('access_token', json.data.access_token);
+  if (json.data.password_change_required) {
+    localStorage.setItem('password_change_required', 'true');
+  } else {
+    localStorage.removeItem('password_change_required');
+  }
+  return json.data;
+}
+
+export async function changePassword(data: { old_password?: string; new_password: string }): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/change-password`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `HTTP ${res.status}`);
+  }
+  localStorage.removeItem('password_change_required');
+}
+
+export async function getMe(): Promise<{
+  id: string;
+  email: string;
+  role: string;
+  full_name: string;
+  password_change_required?: boolean;
+}> {
+  const res = await fetch(`${API_BASE}/auth/me`, { headers: authHeaders() });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.detail || 'Failed to get user info');
   return json.data;
 }
 

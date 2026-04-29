@@ -66,12 +66,21 @@ class UserResponse(UserBase):
     created_at: datetime
     updated_at: datetime
     last_login_at: datetime | None
+    password_change_required: bool
+
+
+class PasswordChangeRequest(BaseModel):
+    """Password change request."""
+
+    old_password: str | None = Field(None, min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 
 class LoginResponse(Token):
     """Login response with user data."""
 
     user: UserResponse
+    password_change_required: bool = False
 
 
 class GuestSessionResponse(BaseModel):

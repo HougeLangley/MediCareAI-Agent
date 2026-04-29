@@ -31,6 +31,7 @@ from app.models.user import GuestSession, RoleSwitchLog, User, UserRole, UserSta
 from app.schemas.auth import (
     GuestSessionResponse,
     LoginResponse,
+    PasswordChangeRequest,
     RoleSwitchRequest,
     RoleSwitchResponse,
     Token,
@@ -142,7 +143,37 @@ async def login(
         token_type="bearer",
         expires_in=7 * 24 * 60 * 60,
         user=UserResponse.model_validate(user),
+        password_change_required=user.password_change_required,
     )
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    data: PasswordChangeRequest,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Change current user's password.
+
+    If password_change_required is set, old_password can be omitted
+    for the initial password change after default login.
+    """
+    # Verify old password (skip if admin doing first-time change)
+    if not current_user.password_change_required:
+        if not data.old_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Old password is required",
+            )
+        if not verify_password(data.old_password, current_user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect old password",
+            )
+
+    current_user.hashed_password = get_password_hash(data.new_password)
+    current_user.password_change_required = False
+    await db.commit()
 
 
 @router.post("/guest", response_model=GuestSessionResponse, status_code=status.HTTP_201_CREATED)

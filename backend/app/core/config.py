@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["*"]
 
+    # Default admin credentials (auto-created if no admin exists)
+    default_admin_email: str = "admin@medicareai.dev"
+    default_admin_password: SecretStr = SecretStr("admin123")
+
     # Encryption master key for API keys at rest
     api_key_master_key: SecretStr | None = None
 

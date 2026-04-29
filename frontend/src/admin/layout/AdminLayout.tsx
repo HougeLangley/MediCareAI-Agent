@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Box,
@@ -13,13 +13,16 @@ import {
   ListItemText,
   IconButton,
   Divider,
+  CircularProgress,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { logout } from '../../api/admin';
+import { logout, getMe } from '../../api/admin';
+import AdminLoginPage from '../pages/AdminLoginPage';
+import ChangePasswordPage from '../pages/ChangePasswordPage';
 
 const DRAWER_WIDTH = 240;
 
@@ -31,15 +34,61 @@ const NAV_ITEMS = [
 
 export default function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [needPasswordChange, setNeedPasswordChange] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setAuthChecked(true);
+      setIsAuthenticated(false);
+      return;
+    }
+    // Validate token
+    getMe()
+      .then((user) => {
+        setIsAuthenticated(true);
+        if (user.password_change_required || localStorage.getItem('password_change_required') === 'true') {
+          setNeedPasswordChange(true);
+        }
+      })
+      .catch(() => {
+        logout();
+        setIsAuthenticated(false);
+      })
+      .finally(() => setAuthChecked(true));
+  }, [location.pathname]);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    setIsAuthenticated(false);
+    setNeedPasswordChange(false);
+    navigate('/admin');
   };
+
+  // Show loading while checking auth
+  if (!authChecked) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Not authenticated → show login page
+  if (!isAuthenticated) {
+    return <AdminLoginPage />;
+  }
+
+  // Authenticated but need password change → show change password page
+  if (needPasswordChange) {
+    return <ChangePasswordPage />;
+  }
 
   const drawer = (
     <Box>
