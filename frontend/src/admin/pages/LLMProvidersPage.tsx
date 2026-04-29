@@ -3,6 +3,7 @@ import {
   Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
   Typography, Switch, FormControlLabel, Tooltip, CircularProgress, Alert, Paper,
+  Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -26,6 +27,17 @@ const emptyForm: LLMProviderCreate = {
   is_active: true,
   is_default: false,
 };
+
+const MODEL_TYPE_OPTIONS = [
+  { value: 'diagnosis', label: '诊断/对话 (diagnosis)' },
+  { value: 'multimodal', label: '多模态 (multimodal)' },
+  { value: 'embedding', label: '向量嵌入 (embedding)' },
+  { value: 'reranking', label: '重排序 (reranking)' },
+  { value: 'extraction', label: '结构化提取 (extraction)' },
+  { value: 'summarization', label: '摘要 (summarization)' },
+  { value: 'classify', label: '分类/路由 (classify)' },
+  { value: 'vision', label: '医学影像 (vision)' },
+];
 
 export default function LLMProvidersPage() {
   const [providers, setProviders] = useState<LLMProvider[]>([]);
@@ -150,6 +162,7 @@ export default function LLMProvidersPage() {
                   <TableCell>平台</TableCell>
                   <TableCell>Base URL</TableCell>
                   <TableCell>默认模型</TableCell>
+                  <TableCell>模型类型</TableCell>
                   <TableCell>状态</TableCell>
                   <TableCell>默认</TableCell>
                   <TableCell>API Key</TableCell>
@@ -158,9 +171,9 @@ export default function LLMProvidersPage() {
               </TableHead>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={9} align="center"><CircularProgress size={24} /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} align="center"><CircularProgress size={24} /></TableCell></TableRow>
                 ) : providers.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} align="center">暂无数据</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} align="center">暂无数据</TableCell></TableRow>
                 ) : (
                   providers.map((p) => {
                     const testKey = `${p.provider}-${p.platform || 'global'}`;
@@ -172,6 +185,14 @@ export default function LLMProvidersPage() {
                         <TableCell>{p.platform || 'global'}</TableCell>
                         <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.base_url}</TableCell>
                         <TableCell>{p.default_model}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={MODEL_TYPE_OPTIONS.find((o) => o.value === p.model_type)?.label || p.model_type}
+                            size="small"
+                            variant="outlined"
+                            color={p.model_type === 'diagnosis' ? 'primary' : 'default'}
+                          />
+                        </TableCell>
                         <TableCell>
                           {p.is_active ? (
                             <Chip icon={<CheckCircleIcon />} label="激活" color="success" size="small" />
@@ -261,12 +282,19 @@ export default function LLMProvidersPage() {
               required
               size="small"
             />
-            <TextField
-              label="模型类型"
-              value={form.model_type}
-              onChange={(e) => setForm({ ...form, model_type: e.target.value })}
-              size="small"
-            />
+            <FormControl size="small" fullWidth>
+              <InputLabel id="model-type-label">模型类型</InputLabel>
+              <Select
+                labelId="model-type-label"
+                label="模型类型"
+                value={form.model_type}
+                onChange={(e) => setForm({ ...form, model_type: e.target.value })}
+              >
+                {MODEL_TYPE_OPTIONS.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <FormControlLabel
                 control={<Switch checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />}
