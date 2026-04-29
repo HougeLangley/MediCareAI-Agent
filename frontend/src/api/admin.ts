@@ -88,8 +88,10 @@ export async function testLLMProvider(id: string): Promise<ProviderTestResult> {
 
 // ─── System Settings ────────────────────────────────────────
 
-export async function listSettings(): Promise<SystemSetting[]> {
-  const res = await fetch(`${API_BASE}/admin/settings`, { headers: authHeaders() });
+export async function listSettings(category?: string): Promise<SystemSetting[]> {
+  const url = new URL(`${API_BASE}/admin/settings`, window.location.origin);
+  if (category) url.searchParams.set('category', category);
+  const res = await fetch(url.toString(), { headers: authHeaders() });
   return handleResponse<SystemSetting[]>(res);
 }
 

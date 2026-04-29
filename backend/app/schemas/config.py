@@ -60,6 +60,9 @@ class SystemSettingBase(BaseModel):
     value: str = Field(..., min_length=1)
     description: str | None = None
     is_sensitive: bool = False
+    category: str = Field(default="general", max_length=50)
+    value_type: str = Field(default="string", max_length=20)
+    options: str | None = None
 
 
 class SystemSettingCreate(SystemSettingBase):
@@ -73,6 +76,9 @@ class SystemSettingUpdate(BaseModel):
     value: str | None = None
     description: str | None = None
     is_sensitive: bool | None = None
+    category: str | None = Field(None, max_length=50)
+    value_type: str | None = Field(None, max_length=20)
+    options: str | None = None
 
 
 class SystemSettingResponse(SystemSettingBase):

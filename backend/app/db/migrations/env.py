@@ -11,7 +11,13 @@ from alembic import context
 
 from app.core.config import get_settings
 from app.db.session import Base
-from app.models import user  # noqa: F401 — registers models with Base.metadata
+from app.models import (  # noqa: F401 — registers all models with Base.metadata
+    agent,
+    config,
+    medical_case,
+    rag,
+    user,
+)
 
 settings = get_settings()
 

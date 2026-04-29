@@ -44,6 +44,9 @@ export interface SystemSetting {
   value: string;
   description: string | null;
   is_sensitive: boolean;
+  category: string;
+  value_type: string;
+  options: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -53,12 +56,18 @@ export interface SystemSettingCreate {
   value: string;
   description?: string | null;
   is_sensitive?: boolean;
+  category?: string;
+  value_type?: string;
+  options?: string | null;
 }
 
 export interface SystemSettingUpdate {
   value?: string;
   description?: string | null;
   is_sensitive?: boolean;
+  category?: string;
+  value_type?: string;
+  options?: string | null;
 }
 
 export interface BatchSettingsRequest {

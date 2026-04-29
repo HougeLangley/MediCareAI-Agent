@@ -1,25 +1,118 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
-  Typography, Switch, FormControlLabel, Alert, Paper, CircularProgress, Tooltip,
+  FormControl, FormControlLabel, InputLabel, MenuItem, Select, Switch, Tab, Tabs,
+  TextField, Typography, Alert, Paper, CircularProgress, Grid,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
-import {
-  listSettings, createSetting, updateSetting, deleteSetting, batchUpdateSettings,
-} from '../../api/admin';
+import AddIcon from '@mui/icons-material/Add';
+import { listSettings, createSetting, batchUpdateSettings } from '../../api/admin';
 import type { SystemSetting, SystemSettingCreate } from '../../types/admin';
+
+const CATEGORIES: Record<string, { label: string; color: string }> = {
+  general: { label: '⚙️ 通用', color: '#64748B' },
+  auth: { label: '🔐 注册认证', color: '#3B82F6' },
+  diagnosis: { label: '🏥 医疗诊断', color: '#10B981' },
+  agent: { label: '🤖 Agent 配置', color: '#8B5CF6' },
+  notification: { label: '📧 通知', color: '#F59E0B' },
+  security: { label: '🛡️ 安全', color: '#EF4444' },
+};
+
+const CATEGORY_ORDER = ['general', 'auth', 'diagnosis', 'agent', 'notification', 'security'];
+
+function getCategoryLabel(cat: string): string {
+  return CATEGORIES[cat]?.label || cat;
+}
+
+function getCategoryColor(cat: string): string {
+  return CATEGORIES[cat]?.color || '#64748B';
+}
+
+function parseBoolean(val: string): boolean {
+  return val.toLowerCase() === 'true' || val === '1';
+}
+
+function SettingInput({
+  setting,
+  onChange,
+}: {
+  setting: SystemSetting;
+  onChange: (val: string) => void;
+}) {
+  const { value_type, value, options, is_sensitive } = setting;
+
+  if (value_type === 'boolean') {
+    return (
+      <FormControlLabel
+        control={
+          <Switch
+            checked={parseBoolean(value)}
+            onChange={(e) => onChange(e.target.checked ? 'true' : 'false')}
+          />
+        }
+        label={parseBoolean(value) ? '启用' : '禁用'}
+      />
+    );
+  }
+
+  if (value_type === 'number') {
+    return (
+      <TextField
+        type="number"
+        size="small"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        fullWidth
+        variant="outlined"
+        sx={{ maxWidth: 200 }}
+      />
+    );
+  }
+
+  if (value_type === 'select' && options) {
+    const opts = options.split(',').map((o) => o.trim());
+    return (
+      <FormControl size="small" fullWidth sx={{ maxWidth: 240 }}>
+        <Select value={value} onChange={(e) => onChange(e.target.value)}>
+          {opts.map((opt) => (
+            <MenuItem key={opt} value={opt}>
+              {opt}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    );
+  }
+
+  return (
+    <TextField
+      size="small"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      fullWidth
+      variant="outlined"
+      type={is_sensitive ? 'password' : 'text'}
+    />
+  );
+}
 
 export default function SystemSettingsPage() {
   const [settings, setSettings] = useState<SystemSetting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [activeTab, setActiveTab] = useState('general');
   const [openDialog, setOpenDialog] = useState(false);
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [form, setForm] = useState<SystemSettingCreate>({ key: '', value: '', description: '', is_sensitive: false });
+  const [form, setForm] = useState<SystemSettingCreate>({
+    key: '',
+    value: '',
+    description: '',
+    is_sensitive: false,
+    category: 'general',
+    value_type: 'string',
+    options: '',
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -27,34 +120,87 @@ export default function SystemSettingsPage() {
     try {
       const data = await listSettings();
       setSettings(data);
+      // Set active tab to first non-empty category
+      const cats = Array.from(new Set(data.map((s) => s.category)));
+      if (cats.length > 0 && !cats.includes(activeTab)) {
+        const first = CATEGORY_ORDER.find((c) => cats.includes(c)) || cats[0];
+        setActiveTab(first);
+      }
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
+  }, [activeTab]);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { load(); }, [load]);
-
-  const handleOpenAdd = () => {
-    setEditingKey(null);
-    setForm({ key: '', value: '', description: '', is_sensitive: false });
-    setOpenDialog(true);
+  const handleChange = (key: string, val: string) => {
+    setSettings((prev) => prev.map((s) => (s.key === key ? { ...s, value: val } : s)));
   };
 
-  const handleOpenEdit = (s: SystemSetting) => {
-    setEditingKey(s.key);
-    setForm({ key: s.key, value: s.value, description: s.description || '', is_sensitive: s.is_sensitive });
-    setOpenDialog(true);
-  };
+  const handleSaveCategory = async () => {
+    const categorySettings = settings.filter((s) => s.category === activeTab);
+    if (categorySettings.length === 0) return;
 
-  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
     try {
-      if (editingKey) {
-        await updateSetting(editingKey, { value: form.value, description: form.description || null, is_sensitive: form.is_sensitive });
-      } else {
-        await createSetting(form);
-      }
+      await batchUpdateSettings(
+        categorySettings.map((s) => ({
+          key: s.key,
+          value: s.value,
+          description: s.description,
+          is_sensitive: s.is_sensitive,
+          category: s.category,
+          value_type: s.value_type,
+          options: s.options,
+        }))
+      );
+      setSuccess(`${getCategoryLabel(activeTab)} 设置已保存`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveAll = async () => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      await batchUpdateSettings(
+        settings.map((s) => ({
+          key: s.key,
+          value: s.value,
+          description: s.description,
+          is_sensitive: s.is_sensitive,
+          category: s.category,
+          value_type: s.value_type,
+          options: s.options,
+        }))
+      );
+      setSuccess('所有设置已保存');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    try {
+      await createSetting({
+        ...form,
+        options: form.options || null,
+      });
       setOpenDialog(false);
       load();
     } catch (e: unknown) {
@@ -62,42 +208,32 @@ export default function SystemSettingsPage() {
     }
   };
 
-  const handleDelete = async (key: string) => {
-    if (!window.confirm(`确定删除设置 "${key}" ？`)) return;
-    try {
-      await deleteSetting(key);
-      load();
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    }
-  };
+  const grouped = settings.reduce<Record<string, SystemSetting[]>>((acc, s) => {
+    acc[s.category] = acc[s.category] || [];
+    acc[s.category].push(s);
+    return acc;
+  }, {});
 
-  const handleBatchSave = async () => {
-    try {
-      const items = settings.map((s) => ({
-        key: s.key,
-        value: s.value,
-        description: s.description,
-        is_sensitive: s.is_sensitive,
-      }));
-      await batchUpdateSettings(items);
-      setError('');
-      load();
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    }
-  };
+  const availableCategories = CATEGORY_ORDER.filter((c) => grouped[c]?.length > 0);
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>系统设置管理</Typography>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>
+          系统设置
+        </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button variant="outlined" startIcon={<SaveIcon />} onClick={handleBatchSave}>
-            批量保存
+          <Button
+            variant="outlined"
+            startIcon={<SaveIcon />}
+            onClick={handleSaveAll}
+            disabled={saving || loading}
+          >
+            {saving ? <CircularProgress size={16} /> : '保存全部'}
           </Button>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenAdd}>
-            新增设置
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenDialog(true)}>
+            自定义设置
           </Button>
         </Box>
       </Box>
@@ -107,86 +243,124 @@ export default function SystemSettingsPage() {
           {error}
         </Alert>
       )}
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
+          {success}
+        </Alert>
+      )}
 
-      <Card>
-        <CardContent sx={{ p: 0 }}>
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: '#F5F7FA' }}>
-                  <TableCell sx={{ width: '20%' }}>Key</TableCell>
-                  <TableCell sx={{ width: '25%' }}>Value</TableCell>
-                  <TableCell sx={{ width: '30%' }}>Description</TableCell>
-                  <TableCell>敏感</TableCell>
-                  <TableCell align="right">操作</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  <TableRow><TableCell colSpan={5} align="center"><CircularProgress size={24} /></TableCell></TableRow>
-                ) : settings.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} align="center">暂无数据</TableCell></TableRow>
-                ) : (
-                  settings.map((s) => (
-                    <TableRow key={s.key} hover>
-                      <TableCell sx={{ fontWeight: 500, fontFamily: 'monospace' }}>{s.key}</TableCell>
-                      <TableCell>
-                        <TextField
-                          size="small"
-                          value={s.value}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setSettings((prev) => prev.map((p) => (p.key === s.key ? { ...p, value: val } : p)));
-                          }}
-                          fullWidth
-                          variant="standard"
-                          type={s.is_sensitive ? 'password' : 'text'}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          size="small"
-                          value={s.description || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setSettings((prev) => prev.map((p) => (p.key === s.key ? { ...p, description: val } : p)));
-                          }}
-                          fullWidth
-                          variant="standard"
-                          placeholder="描述..."
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {s.is_sensitive ? <Chip label="敏感" color="warning" size="small" /> : '—'}
-                      </TableCell>
-                      <TableCell align="right">
-                        <Tooltip title="编辑">
-                          <IconButton size="small" onClick={() => handleOpenEdit(s)}><EditIcon fontSize="small" /></IconButton>
-                        </Tooltip>
-                        <Tooltip title="删除">
-                          <IconButton size="small" color="error" onClick={() => handleDelete(s.key)}><DeleteIcon fontSize="small" /></IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+      {/* Category Tabs */}
+      <Paper sx={{ mb: 2 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          variant="scrollable"
+          scrollButtons="auto"
+        >
+          {availableCategories.map((cat) => (
+            <Tab
+              key={cat}
+              value={cat}
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Chip
+                    size="small"
+                    sx={{
+                      bgcolor: getCategoryColor(cat) + '20',
+                      color: getCategoryColor(cat),
+                      fontWeight: 600,
+                      fontSize: '0.75rem',
+                    }}
+                    label={grouped[cat]?.length || 0}
+                  />
+                  {getCategoryLabel(cat)}
+                </Box>
+              }
+            />
+          ))}
+        </Tabs>
+      </Paper>
 
+      {/* Settings Cards */}
+      {loading ? (
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              onClick={handleSaveCategory}
+              disabled={saving}
+              size="small"
+            >
+              保存当前分类
+            </Button>
+          </Box>
+
+          <Grid container spacing={2}>
+            {(grouped[activeTab] || []).map((s) => (
+              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={s.key}>
+                <Card variant="outlined" sx={{ height: '100%' }}>
+                  <CardContent sx={{ pb: 1.5 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{
+                          fontFamily: 'monospace',
+                          fontWeight: 600,
+                          color: 'text.primary',
+                          wordBreak: 'break-all',
+                        }}
+                      >
+                        {s.key}
+                      </Typography>
+                      <Chip
+                        size="small"
+                        label={s.value_type}
+                        sx={{
+                          fontSize: '0.7rem',
+                          height: 20,
+                          bgcolor: 'action.hover',
+                        }}
+                      />
+                    </Box>
+
+                    {s.description && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                        {s.description}
+                      </Typography>
+                    )}
+
+                    <SettingInput setting={s} onChange={(val) => handleChange(s.key, val)} />
+
+                    {s.is_sensitive && (
+                      <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: 'block' }}>
+                        🔒 敏感设置
+                      </Typography>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </>
+      )}
+
+      {/* Add Custom Setting Dialog */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingKey ? '编辑设置' : '新增设置'}</DialogTitle>
+        <DialogTitle>新增自定义设置</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
               label="Key"
               value={form.key}
               onChange={(e) => setForm({ ...form, key: e.target.value })}
-              disabled={!!editingKey}
               required
               size="small"
+              placeholder="my.custom.setting"
             />
             <TextField
               label="Value"
@@ -201,15 +375,58 @@ export default function SystemSettingsPage() {
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               size="small"
             />
+            <FormControl size="small" fullWidth>
+              <InputLabel>分类</InputLabel>
+              <Select
+                value={form.category}
+                label="分类"
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+              >
+                {Object.entries(CATEGORIES).map(([key, { label }]) => (
+                  <MenuItem key={key} value={key}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel>值类型</InputLabel>
+              <Select
+                value={form.value_type}
+                label="值类型"
+                onChange={(e) => setForm({ ...form, value_type: e.target.value })}
+              >
+                <MenuItem value="string">文本 (string)</MenuItem>
+                <MenuItem value="number">数字 (number)</MenuItem>
+                <MenuItem value="boolean">开关 (boolean)</MenuItem>
+                <MenuItem value="select">下拉选择 (select)</MenuItem>
+              </Select>
+            </FormControl>
+            {form.value_type === 'select' && (
+              <TextField
+                label="选项（逗号分隔）"
+                value={form.options}
+                onChange={(e) => setForm({ ...form, options: e.target.value })}
+                size="small"
+                placeholder="option1, option2, option3"
+              />
+            )}
             <FormControlLabel
-              control={<Switch checked={form.is_sensitive} onChange={(e) => setForm({ ...form, is_sensitive: e.target.checked })} />}
+              control={
+                <Switch
+                  checked={form.is_sensitive}
+                  onChange={(e) => setForm({ ...form, is_sensitive: e.target.checked })}
+                />
+              }
               label="敏感设置（隐藏显示）"
             />
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>取消</Button>
-          <Button variant="contained" onClick={handleSave}>保存</Button>
+          <Button variant="contained" onClick={handleCreate}>
+            创建
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

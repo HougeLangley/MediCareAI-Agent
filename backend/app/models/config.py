@@ -58,7 +58,7 @@ class LLMProviderConfig(Base):
 
 
 class SystemSetting(Base):
-    """Generic key-value system settings."""
+    """Generic key-value system settings with metadata for UI rendering."""
 
     __tablename__ = "system_settings"
 
@@ -66,7 +66,13 @@ class SystemSetting(Base):
     key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     value: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_sensitive: Mapped[bool] = mapped_column(Boolean, default=False)  # Mask in API responses
+    is_sensitive: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Category for grouping in admin UI
+    category: Mapped[str] = mapped_column(String(50), nullable=False, default="general")
+    # Value type for rendering correct input widget: string | number | boolean | select
+    value_type: Mapped[str] = mapped_column(String(20), nullable=False, default="string")
+    # For select type: comma-separated options (e.g. "option1,option2,option3")
+    options: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

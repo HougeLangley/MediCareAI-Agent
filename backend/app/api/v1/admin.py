@@ -29,6 +29,141 @@ from app.services.llm import LLMService
 
 router = APIRouter(dependencies=[Depends(require_role(UserRole.ADMIN))])
 
+# ─── Predefined Business Settings ─────────────────────────────
+# These settings are auto-created on first access if missing.
+# Admins can modify their values but should not delete core keys.
+
+DEFAULT_SETTINGS: list[SystemSettingCreate] = [
+    # ── General ──
+    SystemSettingCreate(
+        key="site.name",
+        value="MediCareAI-Agent",
+        description="站点显示名称",
+        category="general",
+        value_type="string",
+    ),
+    SystemSettingCreate(
+        key="site.description",
+        value="您的智能医疗助手",
+        description="站点副标题/SEO描述",
+        category="general",
+        value_type="string",
+    ),
+    # ── Auth ──
+    SystemSettingCreate(
+        key="auth.registration_enabled",
+        value="true",
+        description="是否开放新用户注册",
+        category="auth",
+        value_type="boolean",
+    ),
+    SystemSettingCreate(
+        key="auth.invite_code_required",
+        value="false",
+        description="注册时是否需要邀请码",
+        category="auth",
+        value_type="boolean",
+    ),
+    SystemSettingCreate(
+        key="auth.guest_max_messages",
+        value="10",
+        description="访客模式允许的最大对话轮数",
+        category="auth",
+        value_type="number",
+    ),
+    SystemSettingCreate(
+        key="auth.password_min_length",
+        value="8",
+        description="用户密码最小长度",
+        category="auth",
+        value_type="number",
+    ),
+    # ── Diagnosis ──
+    SystemSettingCreate(
+        key="diagnosis.confidence_threshold",
+        value="0.7",
+        description="诊断建议的最小置信度阈值 (0-1)",
+        category="diagnosis",
+        value_type="number",
+    ),
+    SystemSettingCreate(
+        key="diagnosis.max_followup_days",
+        value="14",
+        description="自动随访计划的最大天数",
+        category="diagnosis",
+        value_type="number",
+    ),
+    SystemSettingCreate(
+        key="diagnosis.require_symptom_count",
+        value="3",
+        description="生成诊断建议所需的最少症状数量",
+        category="diagnosis",
+        value_type="number",
+    ),
+    # ── Agent ──
+    SystemSettingCreate(
+        key="agent.max_tool_calls",
+        value="5",
+        description="单次对话中 Agent 最大工具调用次数",
+        category="agent",
+        value_type="number",
+    ),
+    SystemSettingCreate(
+        key="agent.enable_followup",
+        value="true",
+        description="是否启用自动随访提醒",
+        category="agent",
+        value_type="boolean",
+    ),
+    SystemSettingCreate(
+        key="agent.response_timeout_seconds",
+        value="60",
+        description="Agent 响应超时时间（秒）",
+        category="agent",
+        value_type="number",
+    ),
+    # ── Notification ──
+    SystemSettingCreate(
+        key="notification.email_enabled",
+        value="true",
+        description="是否启用邮件通知",
+        category="notification",
+        value_type="boolean",
+    ),
+    SystemSettingCreate(
+        key="notification.sms_enabled",
+        value="false",
+        description="是否启用短信通知（需配置 SMS 服务商）",
+        category="notification",
+        value_type="boolean",
+    ),
+    # ── Security ──
+    SystemSettingCreate(
+        key="security.max_login_attempts",
+        value="5",
+        description="同一 IP 最大登录失败次数",
+        category="security",
+        value_type="number",
+    ),
+    SystemSettingCreate(
+        key="security.lockout_duration_minutes",
+        value="30",
+        description="登录失败超过阈值后的锁定时间（分钟）",
+        category="security",
+        value_type="number",
+    ),
+]
+
+
+async def _ensure_default_settings(db: AsyncSession) -> None:
+    """Create default settings if they don't exist."""
+    for item in DEFAULT_SETTINGS:
+        result = await db.execute(select(SystemSetting).where(SystemSetting.key == item.key))
+        if not result.scalar_one_or_none():
+            setting = SystemSetting(**item.model_dump())
+            db.add(setting)
+    await db.commit()
+
 
 def _config_to_response(config: LLMProviderConfig) -> dict[str, Any]:
     """Build a response dict with masked API key."""
@@ -240,10 +375,18 @@ async def test_llm_provider(
 
 @router.get("/settings", response_model=list[SystemSettingResponse])
 async def list_settings(
+    category: Annotated[str | None, Query(description="Filter by category (general/auth/diagnosis/agent/notification/security)")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> list[SystemSetting]:
-    """List all system settings."""
-    result = await db.execute(select(SystemSetting).order_by(SystemSetting.key))
+    """List all system settings, optionally filtered by category.
+
+    Automatically creates default settings on first access.
+    """
+    await _ensure_default_settings(db)
+    stmt = select(SystemSetting).order_by(SystemSetting.category, SystemSetting.key)
+    if category:
+        stmt = stmt.where(SystemSetting.category == category.strip().lower())
+    result = await db.execute(stmt)
     return list(result.scalars().all())
 
 
@@ -287,6 +430,7 @@ async def batch_update_settings(
 
     If a key exists, it is updated; otherwise it is created.
     """
+    await _ensure_default_settings(db)
     updated: list[SystemSetting] = []
     for item in req.items:
         result = await db.execute(select(SystemSetting).where(SystemSetting.key == item.key))
@@ -297,6 +441,12 @@ async def batch_update_settings(
                 setting.description = item.description
             if item.is_sensitive is not None:
                 setting.is_sensitive = item.is_sensitive
+            if item.category is not None:
+                setting.category = item.category
+            if item.value_type is not None:
+                setting.value_type = item.value_type
+            if item.options is not None:
+                setting.options = item.options
         else:
             setting = SystemSetting(**item.model_dump())
             db.add(setting)
