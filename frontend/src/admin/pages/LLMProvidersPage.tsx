@@ -3,7 +3,7 @@ import {
   Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
   Typography, Switch, FormControlLabel, Tooltip, CircularProgress, Alert, Paper,
-  Select, MenuItem, FormControl, InputLabel, Collapse,
+  Select, MenuItem, FormControl, InputLabel, Collapse, Autocomplete,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -11,6 +11,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Block';
 import TestIcon from '@mui/icons-material/NetworkCheck';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import {
   listLLMProviders, createLLMProvider, updateLLMProvider, deleteLLMProvider, testLLMProvider,
 } from '../../api/admin';
@@ -40,31 +41,69 @@ const MODEL_TYPE_OPTIONS = [
 ];
 
 // 官方 API 配置参考（OpenAI 兼容格式，聚焦国内模型）
-const PROVIDER_GUIDES: Record<string, { baseUrl: string; models: string; note?: string }> = {
+interface ProviderGuide {
+  name: string;
+  baseUrl: string;
+  models: { id: string; label: string; type: string }[];
+  notes: string[];
+}
+
+const PROVIDER_GUIDES: Record<string, ProviderGuide> = {
   moonshot: {
+    name: 'Moonshot AI (Kimi)',
     baseUrl: 'https://api.moonshot.cn/v1',
-    models: 'moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k',
-    note: 'Kimi 模型支持文本+图片多模态理解',
+    models: [
+      { id: 'moonshot-v1-8k', label: 'moonshot-v1-8k（8K 上下文，通用对话）', type: 'diagnosis' },
+      { id: 'moonshot-v1-32k', label: 'moonshot-v1-32k（32K 上下文，长文本）', type: 'diagnosis' },
+      { id: 'moonshot-v1-128k', label: 'moonshot-v1-128k（128K 上下文，超长文档）', type: 'diagnosis' },
+      { id: 'moonshot-v1-8k-vision-preview', label: 'moonshot-v1-8k-vision-preview（多模态，支持图片）', type: 'multimodal' },
+    ],
+    notes: ['全部模型支持 OpenAI 兼容 API', 'API Key 在 platform.moonshot.cn 申请', '默认流量限制 60 RPM'],
   },
   deepseek: {
+    name: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com/v1',
-    models: 'deepseek-chat, deepseek-reasoner',
-    note: '推理能力强，适合复杂诊断场景',
+    models: [
+      { id: 'deepseek-chat', label: 'deepseek-chat（通用对话，性价比高）', type: 'diagnosis' },
+      { id: 'deepseek-reasoner', label: 'deepseek-reasoner（推理模型，复杂分析）', type: 'diagnosis' },
+    ],
+    notes: ['支持 OpenAI 兼容 API', 'API Key 在 platform.deepseek.com 申请', '价格极具竞争力'],
   },
   zhipu: {
+    name: '智谱 AI',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4/',
-    models: 'glm-4, glm-4v (多模态), glm-4-flash',
-    note: 'GLM-4V 支持图片理解，Flash 版本成本低',
+    models: [
+      { id: 'glm-4', label: 'glm-4（旗舰模型，综合能力最强）', type: 'diagnosis' },
+      { id: 'glm-4v', label: 'glm-4v（多模态，支持图片理解）', type: 'multimodal' },
+      { id: 'glm-4-flash', label: 'glm-4-flash（轻量版，速度快成本低）', type: 'diagnosis' },
+      { id: 'glm-4-plus', label: 'glm-4-plus（Plus 版本，性能更强）', type: 'diagnosis' },
+      { id: 'glm-4-air', label: 'glm-4-air（Air 版本，性价比优化）', type: 'diagnosis' },
+    ],
+    notes: ['支持 OpenAI 兼容 API', 'API Key 在 open.bigmodel.cn 申请', 'glm-4v 支持图片输入'],
   },
   siliconflow: {
+    name: '矽基流动 (SiliconFlow)',
     baseUrl: 'https://api.siliconflow.cn/v1',
-    models: 'BAAI/bge-m3 (embedding), deepseek-ai/DeepSeek-V2.5, Qwen/Qwen2.5-72B-Instruct, THUDM/glm-4-9b-chat',
-    note: '矽基流动聚合了国内外优秀开源模型，可作为备选方案',
+    models: [
+      { id: 'BAAI/bge-m3', label: 'BAAI/bge-m3（顶级多语言 embedding）', type: 'embedding' },
+      { id: 'BAAI/bge-large-zh-v1.5', label: 'BAAI/bge-large-zh-v1.5（中文向量模型）', type: 'embedding' },
+      { id: 'deepseek-ai/DeepSeek-V2.5', label: 'DeepSeek-V2.5（对话模型）', type: 'diagnosis' },
+      { id: 'deepseek-ai/DeepSeek-R1', label: 'DeepSeek-R1（推理模型）', type: 'diagnosis' },
+      { id: 'Qwen/Qwen2.5-72B-Instruct', label: 'Qwen2.5-72B-Instruct（通义千问 72B）', type: 'diagnosis' },
+      { id: 'Qwen/Qwen2.5-7B-Instruct', label: 'Qwen2.5-7B-Instruct（通义千问 7B 轻量版）', type: 'diagnosis' },
+      { id: 'THUDM/glm-4-9b-chat', label: 'glm-4-9b-chat（智谱 GLM-4 9B）', type: 'diagnosis' },
+    ],
+    notes: ['支持 OpenAI 兼容 API', 'API Key 在 cloud.siliconflow.cn 申请', '聚合国内外优秀开源模型', 'embedding 推荐 BAAI/bge-m3'],
   },
   jina: {
+    name: 'Jina AI',
     baseUrl: 'https://api.jina.ai/v1',
-    models: 'jina-reranker-v2-base-multilingual (reranking)',
-    note: '重排序专用，支持多语言，提升 RAG 精度',
+    models: [
+      { id: 'jina-reranker-v2-base-multilingual', label: 'jina-reranker-v2-base-multilingual（多语言重排序）', type: 'reranking' },
+      { id: 'jina-embeddings-v3', label: 'jina-embeddings-v3（向量嵌入）', type: 'embedding' },
+      { id: 'jina-colbert-v2', label: 'jina-colbert-v2（ColBERT 重排序）', type: 'reranking' },
+    ],
+    notes: ['支持 OpenAI 兼容 API', 'API Key 在 jina.ai 申请', '专注 RAG 增强', '免费额度高'],
   },
 };
 
@@ -79,7 +118,8 @@ export default function LLMProvidersPage() {
   const [testingId, setTestingId] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
 
-  const providerGuide = PROVIDER_GUIDES[form.provider.toLowerCase()];
+  const providerKey = form.provider.toLowerCase().trim();
+  const providerGuide = PROVIDER_GUIDES[providerKey];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,6 +156,18 @@ export default function LLMProvidersPage() {
       is_default: p.is_default,
     });
     setOpenDialog(true);
+  };
+
+  const handleAutoFill = () => {
+    if (!providerGuide || editingProvider) return;
+    const firstModel = providerGuide.models[0];
+    setForm((prev) => ({
+      ...prev,
+      name: providerGuide.name,
+      base_url: providerGuide.baseUrl,
+      default_model: firstModel?.id || '',
+      model_type: firstModel?.type || 'diagnosis',
+    }));
   };
 
   const handleSave = async () => {
@@ -271,31 +323,49 @@ export default function LLMProvidersPage() {
         <DialogTitle>{editingProvider ? '编辑供应商' : '新增供应商'}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <TextField
-              label="提供商标识"
+            <Autocomplete
+              freeSolo
+              options={Object.keys(PROVIDER_GUIDES)}
               value={form.provider}
-              onChange={(e) => setForm({ ...form, provider: e.target.value })}
+              onChange={(_, newValue) => setForm({ ...form, provider: newValue || '' })}
+              onInputChange={(_, newInput) => setForm({ ...form, provider: newInput })}
               disabled={!!editingProvider}
-              required
-              size="small"
-              helperText="如：moonshot, deepseek, zhipu, siliconflow, jina"
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="提供商标识"
+                  required
+                  size="small"
+                  helperText="输入 moonshot / deepseek / zhipu / siliconflow / jina 自动提示"
+                />
+              )}
             />
             {providerGuide && !editingProvider && (
-              <Alert severity="info" icon={false} sx={{ py: 0.5 }}>
+              <Alert
+                severity="info"
+                icon={false}
+                sx={{ py: 0.5 }}
+                action={
+                  <Button
+                    color="primary"
+                    size="small"
+                    startIcon={<AutoFixHighIcon />}
+                    onClick={handleAutoFill}
+                    sx={{ whiteSpace: 'nowrap' }}
+                  >
+                    一键填充
+                  </Button>
+                }
+              >
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  ⚠️ 提示：检测到 {form.provider} 官方配置
+                  ✅ 检测到 {providerGuide.name} 官方配置
                 </Typography>
                 <Typography variant="caption" component="div">
                   Base URL: {providerGuide.baseUrl}
                 </Typography>
                 <Typography variant="caption" component="div">
-                  推荐模型: {providerGuide.models}
+                  可用模型: {providerGuide.models.length} 个
                 </Typography>
-                {providerGuide.note && (
-                  <Typography variant="caption" component="div" color="warning.main">
-                    {providerGuide.note}
-                  </Typography>
-                )}
               </Alert>
             )}
             <TextField
@@ -326,13 +396,40 @@ export default function LLMProvidersPage() {
               type="password"
               size="small"
             />
-            <TextField
-              label="默认模型"
-              value={form.default_model}
-              onChange={(e) => setForm({ ...form, default_model: e.target.value })}
-              required
-              size="small"
-            />
+            {providerGuide && !editingProvider ? (
+              <FormControl size="small" fullWidth>
+                <InputLabel id="model-select-label">默认模型</InputLabel>
+                <Select
+                  labelId="model-select-label"
+                  label="默认模型"
+                  value={form.default_model}
+                  onChange={(e) => {
+                    const modelId = e.target.value;
+                    const modelInfo = providerGuide.models.find((m) => m.id === modelId);
+                    setForm({
+                      ...form,
+                      default_model: modelId,
+                      model_type: modelInfo?.type || form.model_type,
+                    });
+                  }}
+                  required
+                >
+                  {providerGuide.models.map((m) => (
+                    <MenuItem key={m.id} value={m.id}>
+                      {m.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : (
+              <TextField
+                label="默认模型"
+                value={form.default_model}
+                onChange={(e) => setForm({ ...form, default_model: e.target.value })}
+                required
+                size="small"
+              />
+            )}
             <FormControl size="small" fullWidth>
               <InputLabel id="model-type-label">模型类型</InputLabel>
               <Select
@@ -366,21 +463,21 @@ export default function LLMProvidersPage() {
                     📖 官方 API 配置参考（OpenAI 兼容格式）
                   </Typography>
                   {Object.entries(PROVIDER_GUIDES).map(([key, guide]) => (
-                    <Box key={key} sx={{ mb: 1 }}>
+                    <Box key={key} sx={{ mb: 1.5 }}>
                       <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
-                        {key}:
+                        {key} ({guide.name}):
                       </Typography>
                       <Typography variant="caption" component="div">
                         Base URL: {guide.baseUrl}
                       </Typography>
                       <Typography variant="caption" component="div">
-                        模型: {guide.models}
+                        模型: {guide.models.map((m) => m.id).join(', ')}
                       </Typography>
-                      {guide.note && (
-                        <Typography variant="caption" component="div" color="warning.main">
-                          注意: {guide.note}
+                      {guide.notes.map((note, i) => (
+                        <Typography key={i} variant="caption" component="div" color="text.secondary">
+                          • {note}
                         </Typography>
-                      )}
+                      ))}
                     </Box>
                   ))}
                 </Alert>
