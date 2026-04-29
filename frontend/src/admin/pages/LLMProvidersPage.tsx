@@ -64,14 +64,30 @@ const PROVIDER_GUIDES: Record<string, ProviderGuide> = {
       '如需旧版 moonshot-v1 系列模型可手动输入',
     ],
   },
-  deepseek: {
-    name: 'DeepSeek',
-    baseUrl: 'https://api.deepseek.com/v1',
+  opencode: {
+    name: 'OpenCode Go',
+    baseUrl: 'https://opencode.ai/zen/go/v1',
     models: [
-      { id: 'deepseek-chat', label: 'deepseek-chat（通用对话，性价比高）', type: 'diagnosis' },
-      { id: 'deepseek-reasoner', label: 'deepseek-reasoner（推理模型，复杂分析）', type: 'diagnosis' },
+      { id: 'kimi-k2.5', label: 'kimi-k2.5（Kimi K2.5，长上下文通用）', type: 'diagnosis' },
+      { id: 'kimi-k2.6', label: 'kimi-k2.6（Kimi K2.6，旗舰模型）', type: 'diagnosis' },
+      { id: 'glm-5.1', label: 'glm-5.1（GLM-5.1，高端模型）', type: 'diagnosis' },
+      { id: 'glm-5', label: 'glm-5（GLM-5，性能均衡）', type: 'diagnosis' },
+      { id: 'deepseek-v4-pro', label: 'deepseek-v4-pro（DeepSeek V4 Pro，推理强）', type: 'diagnosis' },
+      { id: 'deepseek-v4-flash', label: 'deepseek-v4-flash（DeepSeek V4 Flash，速度快）', type: 'diagnosis' },
+      { id: 'mimo-v2-pro', label: 'mimo-v2-pro（MiMo-V2-Pro）', type: 'diagnosis' },
+      { id: 'mimo-v2-omni', label: 'mimo-v2-omni（MiMo-V2-Omni，多模态）', type: 'multimodal' },
+      { id: 'mimo-v2.5-pro', label: 'mimo-v2.5-pro（MiMo-V2.5-Pro）', type: 'diagnosis' },
+      { id: 'mimo-v2.5', label: 'mimo-v2.5（MiMo-V2.5，256K上下文）', type: 'diagnosis' },
+      { id: 'qwen3.6-plus', label: 'qwen3.6-plus（通义千问 3.6 Plus）', type: 'diagnosis' },
+      { id: 'qwen3.5-plus', label: 'qwen3.5-plus（通义千问 3.5 Plus）', type: 'diagnosis' },
     ],
-    notes: ['支持 OpenAI 兼容 API', 'API Key 在 platform.deepseek.com 申请', '价格极具竞争力'],
+    notes: [
+      '支持 OpenAI 兼容 API 格式',
+      'Base URL: https://opencode.ai/zen/go/v1',
+      'API Key 在 https://opencode.ai/zen 订阅后获取',
+      '首月 $5，之后 $10/月',
+      '注意：MiniMax M2.5/M2.7 使用 Anthropic 格式，未包含',
+    ],
   },
   zhipu: {
     name: '智谱 AI',
@@ -340,7 +356,7 @@ export default function LLMProvidersPage() {
                   label="提供商标识"
                   required
                   size="small"
-                  helperText="输入 moonshot / deepseek / zhipu / siliconflow / jina 自动提示"
+                  helperText="输入 moonshot / opencode / zhipu / siliconflow / jina 自动提示"
                 />
               )}
             />
