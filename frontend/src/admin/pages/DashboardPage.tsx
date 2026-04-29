@@ -96,18 +96,25 @@ export default function DashboardPage() {
               用户角色分布
             </Typography>
             <Grid container spacing={2}>
-              {Object.entries(stats.users.by_role).map(([role, count]) => (
-                <Grid size={{ xs: 6, sm: 4, md: 3 }} key={role}>
-                  <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#F5F7FA', borderRadius: 1 }}>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: '#1565C0' }}>
-                      {count}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
-                      {role}
-                    </Typography>
-                  </Box>
-                </Grid>
-              ))}
+              {Object.entries(stats.users.by_role).map(([role, count]) => {
+                const roleNames: Record<string, string> = {
+                  patient: '患者',
+                  doctor: '医生',
+                  admin: '管理员',
+                };
+                return (
+                  <Grid size={{ xs: 6, sm: 4, md: 3 }} key={role}>
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#F5F7FA', borderRadius: 1 }}>
+                      <Typography variant="h5" sx={{ fontWeight: 700, color: '#1565C0' }}>
+                        {count}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {roleNames[role] || role}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                );
+              })}
             </Grid>
           </CardContent>
         </Card>
