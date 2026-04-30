@@ -130,13 +130,6 @@ DEFAULT_SETTINGS: list[SystemSettingCreate] = [
         category="notification",
         value_type="boolean",
     ),
-    SystemSettingCreate(
-        key="notification.sms_enabled",
-        value="false",
-        description="是否启用短信通知（需配置 SMS 服务商）",
-        category="notification",
-        value_type="boolean",
-    ),
     # ── Security ──
     SystemSettingCreate(
         key="security.max_login_attempts",
