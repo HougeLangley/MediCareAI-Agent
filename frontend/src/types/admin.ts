@@ -101,7 +101,6 @@ export interface UserItem {
   id: string;
   email: string;
   full_name: string;
-  phone: string | null;
   role: string;
   status: string;
   is_verified: boolean;
@@ -116,7 +115,6 @@ export interface UserItem {
 
 export interface UserAdminUpdate {
   full_name?: string;
-  phone?: string | null;
   status?: string;
   is_verified?: boolean;
   license_number?: string | null;

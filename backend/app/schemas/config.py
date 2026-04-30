@@ -107,7 +107,6 @@ class UserListItem(BaseModel):
     id: uuid.UUID
     email: str
     full_name: str
-    phone: str | None
     role: str
     status: str
     is_verified: bool
@@ -124,7 +123,6 @@ class UserAdminUpdate(BaseModel):
     """Admin update user request."""
 
     full_name: str | None = Field(None, min_length=1, max_length=255)
-    phone: str | None = Field(None, max_length=50)
     status: str | None = Field(None, pattern=r"^(active|inactive|pending)$")
     is_verified: bool | None = None
     license_number: str | None = Field(None, max_length=100)

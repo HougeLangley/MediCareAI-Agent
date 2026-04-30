@@ -78,7 +78,6 @@ export default function UsersPage() {
     setEditingUser(u);
     setForm({
       full_name: u.full_name,
-      phone: u.phone,
       status: u.status,
       is_verified: u.is_verified,
       license_number: u.license_number,
@@ -216,11 +215,6 @@ export default function UsersPage() {
                           <Typography variant="caption" color="text.secondary">
                             {u.email}
                           </Typography>
-                          {u.phone && (
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                              {u.phone}
-                            </Typography>
-                          )}
                         </Box>
                       </TableCell>
                       <TableCell>
@@ -291,13 +285,6 @@ export default function UsersPage() {
               label="姓名"
               value={form.full_name || ''}
               onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-              size="small"
-              fullWidth
-            />
-            <TextField
-              label="手机号"
-              value={form.phone || ''}
-              onChange={(e) => setForm({ ...form, phone: e.target.value || null })}
               size="small"
               fullWidth
             />
