@@ -263,3 +263,109 @@ export async function verifyDoctor(id: string, data: DoctorVerifyRequest): Promi
   });
   return handleResponse<UserItem>(res);
 }
+
+// ─── Knowledge Base Management ─────────────────────────────────
+
+import type {
+  DocumentCreate,
+  DocumentDetail,
+  DocumentItem,
+  DocumentReviewLog,
+  DocumentUpdate,
+  ReviewAction,
+  ReviewQueueItem,
+} from '../types/admin';
+
+export async function listDocuments(params?: {
+  doc_type?: string;
+  status?: string;
+  search?: string;
+  is_active?: boolean;
+  skip?: number;
+  limit?: number;
+}): Promise<DocumentItem[]> {
+  const url = new URL(`${API_BASE}/admin/knowledge`, window.location.origin);
+  if (params?.doc_type) url.searchParams.set('doc_type', params.doc_type);
+  if (params?.status) url.searchParams.set('status', params.status);
+  if (params?.search) url.searchParams.set('search', params.search);
+  if (params?.is_active !== undefined) url.searchParams.set('is_active', String(params.is_active));
+  if (params?.skip !== undefined) url.searchParams.set('skip', String(params.skip));
+  if (params?.limit !== undefined) url.searchParams.set('limit', String(params.limit));
+  const res = await fetch(url.toString(), { headers: authHeaders() });
+  return handleResponse<DocumentItem[]>(res);
+}
+
+export async function getDocument(id: string): Promise<DocumentDetail> {
+  const res = await fetch(`${API_BASE}/admin/knowledge/${id}`, { headers: authHeaders() });
+  return handleResponse<DocumentDetail>(res);
+}
+
+export async function createDocument(data: DocumentCreate): Promise<DocumentDetail> {
+  const res = await fetch(`${API_BASE}/admin/knowledge`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<DocumentDetail>(res);
+}
+
+export async function updateDocument(id: string, data: DocumentUpdate): Promise<DocumentDetail> {
+  const res = await fetch(`${API_BASE}/admin/knowledge/${id}`, {
+    method: 'PATCH',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<DocumentDetail>(res);
+}
+
+export async function deleteDocument(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/knowledge/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handleResponse<void>(res);
+}
+
+export async function toggleDocumentActive(id: string): Promise<{ id: string; is_active: boolean }> {
+  const res = await fetch(`${API_BASE}/admin/knowledge/${id}/toggle`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+  });
+  return handleResponse<{ id: string; is_active: boolean }>(res);
+}
+
+// ─── Document Review Queue ─────────────────────────────────
+
+export async function listReviewQueue(params?: {
+  status?: string;
+  skip?: number;
+  limit?: number;
+}): Promise<ReviewQueueItem[]> {
+  const url = new URL(`${API_BASE}/admin/knowledge/reviews`, window.location.origin);
+  if (params?.status) url.searchParams.set('status', params.status);
+  if (params?.skip !== undefined) url.searchParams.set('skip', String(params.skip));
+  if (params?.limit !== undefined) url.searchParams.set('limit', String(params.limit));
+  const res = await fetch(url.toString(), { headers: authHeaders() });
+  return handleResponse<ReviewQueueItem[]>(res);
+}
+
+export async function getDocumentReviewHistory(id: string): Promise<DocumentReviewLog[]> {
+  const res = await fetch(`${API_BASE}/admin/knowledge/reviews/${id}/history`, {
+    headers: authHeaders(),
+  });
+  return handleResponse<DocumentReviewLog[]>(res);
+}
+
+export async function reviewDocument(id: string, data: ReviewAction): Promise<{
+  id: string;
+  review_status: string;
+  action: string;
+  message: string;
+}> {
+  const res = await fetch(`${API_BASE}/admin/knowledge/reviews/${id}`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<{ id: string; review_status: string; action: string; message: string }>(res);
+}

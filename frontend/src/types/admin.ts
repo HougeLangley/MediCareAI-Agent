@@ -129,3 +129,88 @@ export interface DoctorVerifyRequest {
   action: 'approve' | 'reject';
   reason?: string;
 }
+
+// ─── Knowledge Base (Document) ─────────────────────────────────
+
+export type DocumentType = 'platform_guideline' | 'case_report' | 'drug_reference';
+export type ReviewStatus = 'pending' | 'agent_reviewed' | 'approved' | 'rejected' | 'revision_requested';
+
+export interface DocumentItem {
+  id: string;
+  title: string;
+  doc_type: DocumentType;
+  source_type: string | null;
+  review_status: ReviewStatus;
+  department: string | null;
+  disease_tags: string[] | null;
+  drug_name: string | null;
+  is_active: boolean;
+  is_featured: boolean;
+  chunk_count: number;
+  vectorized_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentDetail extends DocumentItem {
+  content: string;
+  source_url: string | null;
+  uploaded_by: string | null;
+  reviewed_by: string | null;
+  agent_review_score: number | null;
+  agent_review_notes: string | null;
+  embedding_model: string | null;
+}
+
+export interface DocumentCreate {
+  title: string;
+  content: string;
+  doc_type: DocumentType;
+  source_url?: string | null;
+  department?: string | null;
+  disease_tags?: string[];
+  drug_name?: string | null;
+  language?: string;
+  is_featured?: boolean;
+}
+
+export interface DocumentUpdate {
+  title?: string;
+  content?: string;
+  doc_type?: DocumentType;
+  source_url?: string | null;
+  department?: string | null;
+  disease_tags?: string[] | null;
+  drug_name?: string | null;
+  language?: string | null;
+  is_active?: boolean;
+  is_featured?: boolean;
+}
+
+export interface DocumentReviewLog {
+  id: string;
+  document_id: string;
+  reviewer_type: string;
+  reviewer_id: string | null;
+  action: string;
+  score: number | null;
+  comments: string | null;
+  reviewed_at: string;
+}
+
+export interface ReviewAction {
+  action: 'approve' | 'reject' | 'request_revision';
+  comments?: string;
+  score?: number;
+}
+
+export interface ReviewQueueItem {
+  id: string;
+  title: string;
+  doc_type: DocumentType;
+  review_status: ReviewStatus;
+  agent_review_score: number | null;
+  agent_review_notes: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
