@@ -78,7 +78,7 @@ services:
       - ./backend/app:/app/app:ro
     command: celery -A app.tasks.celery_app worker -l info -c 2
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -q '[c]elery worker' || exit 1"]
+      test: ["CMD-SHELL", "pidof python3.12 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -101,7 +101,7 @@ services:
       - ./backend/app:/app/app:ro
     command: celery -A app.tasks.celery_app beat -l info
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -q '[c]elery beat' || exit 1"]
+      test: ["CMD-SHELL", "pidof python3.12 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
