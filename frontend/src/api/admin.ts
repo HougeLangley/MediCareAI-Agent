@@ -1,6 +1,9 @@
 /** Admin API 服务层 */
 
 import type {
+  AuditLogFilters,
+  AuditLogItem,
+  AuditLogStats,
   DashboardStats,
   LLMProvider,
   LLMProviderCreate,
@@ -368,4 +371,31 @@ export async function reviewDocument(id: string, data: ReviewAction): Promise<{
     body: JSON.stringify(data),
   });
   return handleResponse<{ id: string; review_status: string; action: string; message: string }>(res);
+}
+
+
+// ─── Audit Logs ─────────────────────────────────────────────────────────────────────────
+
+export async function listAuditLogs(params?: AuditLogFilters): Promise<AuditLogItem[]> {
+  const url = new URL(`${API_BASE}/admin/audit-logs`, window.location.origin);
+  if (params?.action) url.searchParams.set('action', params.action);
+  if (params?.user_id) url.searchParams.set('user_id', params.user_id);
+  if (params?.resource_type) url.searchParams.set('resource_type', params.resource_type);
+  if (params?.date_from) url.searchParams.set('date_from', params.date_from);
+  if (params?.date_to) url.searchParams.set('date_to', params.date_to);
+  if (params?.success !== undefined) url.searchParams.set('success', String(params.success));
+  if (params?.skip !== undefined) url.searchParams.set('skip', String(params.skip));
+  if (params?.limit !== undefined) url.searchParams.set('limit', String(params.limit));
+  const res = await fetch(url.toString(), { headers: authHeaders() });
+  return handleResponse<AuditLogItem[]>(res);
+}
+
+export async function getAuditLog(id: string): Promise<AuditLogItem> {
+  const res = await fetch(`${API_BASE}/admin/audit-logs/${id}`, { headers: authHeaders() });
+  return handleResponse<AuditLogItem>(res);
+}
+
+export async function getAuditLogStats(): Promise<AuditLogStats> {
+  const res = await fetch(`${API_BASE}/admin/audit-logs/stats/overview`, { headers: authHeaders() });
+  return handleResponse<AuditLogStats>(res);
 }

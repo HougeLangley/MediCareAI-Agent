@@ -4,18 +4,20 @@ Manage LLM provider configs and system settings.
 Requires admin role.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_role
+from app.api.deps import CurrentUser, get_current_user, require_role
 from app.core.encryption import decrypt_value, encrypt_value, mask_api_key
 from app.db.session import get_db
+from app.models.audit import AuditActionType, AuditLog, AuditResourceType
 from app.models.config import LLMProviderConfig, SystemSetting
 from app.models.user import User, UserRole
+from app.schemas.audit import AuditLogDetail, AuditLogListItem, AuditLogStats
 from app.schemas.config import (
     BatchSettingsRequest,
     DoctorVerifyRequest,
@@ -28,6 +30,7 @@ from app.schemas.config import (
     UserAdminUpdate,
     UserListItem,
 )
+from app.services.audit import AuditService
 from app.services.llm import LLMService
 
 router = APIRouter(dependencies=[Depends(require_role(UserRole.ADMIN))])
@@ -148,6 +151,14 @@ DEFAULT_SETTINGS: list[SystemSettingCreate] = [
         category="security",
         value_type="number",
     ),
+    # ── Audit ──
+    SystemSettingCreate(
+        key="audit.retention_days",
+        value="30",
+        description="审计日志保留天数（过期自动清理）",
+        category="audit",
+        value_type="number",
+    ),
 ]
 
 
@@ -203,6 +214,7 @@ async def list_llm_providers(
 )
 async def create_llm_provider(
     data: LLMProviderConfigCreate,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Create a new LLM provider configuration.
@@ -251,6 +263,20 @@ async def create_llm_provider(
     db.add(config)
     await db.commit()
     await db.refresh(config)
+
+    # Record audit log
+    await AuditService.record(
+        db,
+        action=AuditActionType.LLM_CONFIG_CREATE,
+        user_id=str(current_user.id),
+        user_email=current_user.email,
+        user_role=current_user.role.value,
+        resource_type=AuditResourceType.LLM_PROVIDER,
+        resource_id=str(config.id),
+        details={"provider": config.provider, "model_type": config.model_type, "name": config.name},
+    )
+    await db.commit()
+
     return _config_to_response(config)
 
 
@@ -276,6 +302,7 @@ async def get_llm_provider(
 async def update_llm_provider(
     provider_id: str,
     data: LLMProviderConfigUpdate,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Update an LLM provider configuration.
@@ -304,12 +331,27 @@ async def update_llm_provider(
 
     await db.commit()
     await db.refresh(config)
+
+    # Record audit log
+    await AuditService.record(
+        db,
+        action=AuditActionType.LLM_CONFIG_UPDATE,
+        user_id=str(current_user.id),
+        user_email=current_user.email,
+        user_role=current_user.role.value,
+        resource_type=AuditResourceType.LLM_PROVIDER,
+        resource_id=provider_id,
+        details={"provider": config.provider, "model_type": config.model_type, "fields_updated": list(update_data.keys())},
+    )
+    await db.commit()
+
     return _config_to_response(config)
 
 
 @router.delete("/llm-providers/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_llm_provider(
     provider_id: str,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete an LLM provider configuration."""
@@ -322,7 +364,22 @@ async def delete_llm_provider(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Provider config '{provider_id}' not found",
         )
+    provider_name = config.provider
+    model_type = config.model_type
     await db.delete(config)
+    await db.commit()
+
+    # Record audit log
+    await AuditService.record(
+        db,
+        action=AuditActionType.LLM_CONFIG_DELETE,
+        user_id=str(current_user.id),
+        user_email=current_user.email,
+        user_role=current_user.role.value,
+        resource_type=AuditResourceType.LLM_PROVIDER,
+        resource_id=provider_id,
+        details={"provider": provider_name, "model_type": model_type},
+    )
     await db.commit()
 
 
@@ -420,6 +477,7 @@ async def create_setting(
 @router.patch("/settings/batch", response_model=list[SystemSettingResponse])
 async def batch_update_settings(
     req: BatchSettingsRequest,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> list[SystemSetting]:
     """Batch create or update system settings.
@@ -451,6 +509,19 @@ async def batch_update_settings(
     await db.commit()
     for s in updated:
         await db.refresh(s)
+
+    # Record audit log
+    await AuditService.record(
+        db,
+        action=AuditActionType.SETTINGS_CHANGE,
+        user_id=str(current_user.id),
+        user_email=current_user.email,
+        user_role=current_user.role.value,
+        resource_type=AuditResourceType.SYSTEM_SETTING,
+        details={"keys_updated": [item.key for item in req.items]},
+    )
+    await db.commit()
+
     return updated
 
 
@@ -682,6 +753,7 @@ async def list_doctors(
 async def verify_doctor(
     doctor_id: str,
     data: DoctorVerifyRequest,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """Approve or reject a doctor's verification application."""
@@ -695,15 +767,38 @@ async def verify_doctor(
             detail="Doctor not found",
         )
 
+    previous_verified = doctor.is_verified
     if data.action == "approve":
         doctor.is_verified = True
         doctor.status = "active"
+        audit_action = AuditActionType.DOCTOR_VERIFY
     else:
         doctor.is_verified = False
         doctor.status = "inactive"
+        audit_action = AuditActionType.DOCTOR_REJECT
 
     await db.commit()
     await db.refresh(doctor)
+
+    # Record audit log
+    await AuditService.record(
+        db,
+        action=audit_action,
+        user_id=str(current_user.id),
+        user_email=current_user.email,
+        user_role=current_user.role.value,
+        resource_type=AuditResourceType.DOCTOR,
+        resource_id=doctor_id,
+        details={
+            "doctor_email": doctor.email,
+            "doctor_name": doctor.name,
+            "action": data.action,
+            "reason": data.reason,
+            "previous_verified": previous_verified,
+        },
+    )
+    await db.commit()
+
     return doctor
 
 
@@ -768,6 +863,7 @@ async def get_document(
 @router.post("/knowledge", response_model=DocumentDetail, status_code=status.HTTP_201_CREATED)
 async def create_document_admin(
     data: DocumentAdminCreate,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Document:
     """Create a new knowledge document (admin only).
@@ -792,6 +888,20 @@ async def create_document_admin(
     doc.source_type = "admin_upload"
     await db.commit()
     await db.refresh(doc)
+
+    # Record audit log
+    await AuditService.record(
+        db,
+        action=AuditActionType.DOCUMENT_CREATE,
+        user_id=str(current_user.id) if current_user else None,
+        user_email=current_user.email if current_user else None,
+        user_role=current_user.role.value if current_user else None,
+        resource_type=AuditResourceType.DOCUMENT,
+        resource_id=str(doc.id),
+        details={"title": doc.title, "doc_type": doc.doc_type.value},
+    )
+    await db.commit()
+
     return doc
 
 
@@ -799,6 +909,7 @@ async def create_document_admin(
 async def update_document_admin(
     doc_id: str,
     data: DocumentAdminUpdate,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Document:
     """Update a knowledge document (admin only)."""
@@ -817,12 +928,27 @@ async def update_document_admin(
     doc.updated_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(doc)
+
+    # Record audit log
+    await AuditService.record(
+        db,
+        action=AuditActionType.DOCUMENT_UPDATE,
+        user_id=str(current_user.id),
+        user_email=current_user.email,
+        user_role=current_user.role.value,
+        resource_type=AuditResourceType.DOCUMENT,
+        resource_id=doc_id,
+        details={"title": doc.title, "doc_type": doc.doc_type.value, "fields_updated": list(update_data.keys())},
+    )
+    await db.commit()
+
     return doc
 
 
 @router.delete("/knowledge/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document_admin(
     doc_id: str,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a knowledge document (admin only)."""
@@ -833,13 +959,29 @@ async def delete_document_admin(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Document '{doc_id}' not found",
         )
+    doc_title = doc.title
+    doc_type = doc.doc_type.value
     await db.delete(doc)
+    await db.commit()
+
+    # Record audit log
+    await AuditService.record(
+        db,
+        action=AuditActionType.DOCUMENT_DELETE,
+        user_id=str(current_user.id),
+        user_email=current_user.email,
+        user_role=current_user.role.value,
+        resource_type=AuditResourceType.DOCUMENT,
+        resource_id=doc_id,
+        details={"title": doc_title, "doc_type": doc_type},
+    )
     await db.commit()
 
 
 @router.patch("/knowledge/{doc_id}/toggle")
 async def toggle_document_active(
     doc_id: str,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Toggle document active status."""
@@ -853,6 +995,20 @@ async def toggle_document_active(
     doc.is_active = not doc.is_active
     await db.commit()
     await db.refresh(doc)
+
+    # Record audit log
+    await AuditService.record(
+        db,
+        action=AuditActionType.DOCUMENT_TOGGLE,
+        user_id=str(current_user.id),
+        user_email=current_user.email,
+        user_role=current_user.role.value,
+        resource_type=AuditResourceType.DOCUMENT,
+        resource_id=doc_id,
+        details={"title": doc.title, "new_is_active": doc.is_active},
+    )
+    await db.commit()
+
     return {"id": str(doc.id), "is_active": doc.is_active}
 
 
@@ -902,6 +1058,7 @@ async def get_document_review_history(
 async def review_document(
     doc_id: str,
     data: DocumentReviewAction,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Submit a review decision for a document (admin or doctor).
@@ -916,6 +1073,7 @@ async def review_document(
             detail=f"Document '{doc_id}' not found",
         )
 
+    previous_status = doc.review_status.value
     # Update document review status
     if data.action == "approve":
         doc.review_status = ReviewStatus.APPROVED
@@ -934,13 +1092,140 @@ async def review_document(
         score=data.score,
         comments=data.comments,
     )
+    review.reviewer_id = current_user.id
     db.add(review)
     await db.commit()
     await db.refresh(doc)
+
+    # Record audit log
+    await AuditService.record(
+        db,
+        action=AuditActionType.DOCUMENT_REVIEW,
+        user_id=str(current_user.id),
+        user_email=current_user.email,
+        user_role=current_user.role.value,
+        resource_type=AuditResourceType.DOCUMENT,
+        resource_id=doc_id,
+        details={
+            "title": doc.title,
+            "action": data.action,
+            "score": data.score,
+            "previous_status": previous_status,
+        },
+    )
+    await db.commit()
 
     return {
         "id": str(doc.id),
         "review_status": doc.review_status.value,
         "action": data.action,
         "message": f"Document {data.action}d successfully",
+    }
+
+
+# ─── Audit Logs ─────────────────────────────────────────────────────────────────────────
+
+
+@router.get("/audit-logs", response_model=list[AuditLogListItem])
+async def list_audit_logs(
+    action: Annotated[str | None, Query(description="Filter by action type")] = None,
+    user_id: Annotated[str | None, Query(description="Filter by user UUID")] = None,
+    resource_type: Annotated[str | None, Query(description="Filter by resource type")] = None,
+    date_from: Annotated[datetime | None, Query(description="Start date (ISO 8601)")] = None,
+    date_to: Annotated[datetime | None, Query(description="End date (ISO 8601)")] = None,
+    success: Annotated[bool | None, Query(description="Filter by success status")] = None,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    db: AsyncSession = Depends(get_db),
+) -> list[AuditLog]:
+    """List audit logs with filtering and pagination.
+
+    Only admin operations are logged — patient-side operations are
+    intentionally excluded for privacy protection.
+    """
+    stmt = select(AuditLog).order_by(AuditLog.created_at.desc())
+
+    if action:
+        stmt = stmt.where(AuditLog.action == action)
+    if user_id:
+        stmt = stmt.where(AuditLog.user_id == user_id)
+    if resource_type:
+        stmt = stmt.where(AuditLog.resource_type == resource_type)
+    if date_from:
+        stmt = stmt.where(AuditLog.created_at >= date_from)
+    if date_to:
+        stmt = stmt.where(AuditLog.created_at <= date_to)
+    if success is not None:
+        stmt = stmt.where(AuditLog.success == success)
+
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+@router.get("/audit-logs/{log_id}", response_model=AuditLogDetail)
+async def get_audit_log(
+    log_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> AuditLog:
+    """Get a single audit log entry with full details."""
+    result = await db.execute(select(AuditLog).where(AuditLog.id == log_id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Audit log '{log_id}' not found",
+        )
+    return log
+
+
+@router.get("/audit-logs/stats/overview", response_model=AuditLogStats)
+async def audit_log_stats(
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get audit log statistics for the dashboard."""
+    from sqlalchemy import func
+
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+
+    # Total today
+    total_today_result = await db.execute(
+        select(func.count(AuditLog.id)).where(AuditLog.created_at >= today_start)
+    )
+    total_today = total_today_result.scalar() or 0
+
+    # Total week
+    total_week_result = await db.execute(
+        select(func.count(AuditLog.id)).where(AuditLog.created_at >= week_start)
+    )
+    total_week = total_week_result.scalar() or 0
+
+    # Failed today
+    failed_today_result = await db.execute(
+        select(func.count(AuditLog.id)).where(
+            AuditLog.created_at >= today_start,
+            AuditLog.success == False,
+        )
+    )
+    failed_today = failed_today_result.scalar() or 0
+
+    # Action breakdown (today)
+    action_result = await db.execute(
+        select(AuditLog.action, func.count(AuditLog.id))
+        .where(AuditLog.created_at >= today_start)
+        .group_by(AuditLog.action)
+        .order_by(func.count(AuditLog.id).desc())
+    )
+    action_breakdown = [
+        {"action": action, "count": count}
+        for action, count in action_result.all()
+    ]
+
+    return {
+        "total_today": total_today,
+        "total_week": total_week,
+        "failed_today": failed_today,
+        "action_breakdown": action_breakdown,
     }

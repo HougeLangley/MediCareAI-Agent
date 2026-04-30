@@ -215,3 +215,72 @@ export interface ReviewQueueItem {
   uploaded_by: string | null;
   created_at: string;
 }
+
+
+// ─── Audit Logs ─────────────────────────────────────────────────────────────────────────
+
+export type AuditActionType =
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'PASSWORD_CHANGE'
+  | 'ROLE_SWITCH'
+  | 'DOCTOR_VERIFY'
+  | 'DOCTOR_REJECT'
+  | 'DOCUMENT_CREATE'
+  | 'DOCUMENT_UPDATE'
+  | 'DOCUMENT_DELETE'
+  | 'DOCUMENT_REVIEW'
+  | 'DOCUMENT_TOGGLE'
+  | 'SETTINGS_CHANGE'
+  | 'LLM_CONFIG_CREATE'
+  | 'LLM_CONFIG_UPDATE'
+  | 'LLM_CONFIG_DELETE'
+  | 'LLM_CONFIG_TEST'
+  | 'USER_CREATE'
+  | 'USER_UPDATE'
+  | 'USER_DELETE'
+  | 'AGENT_SESSION'
+  | 'TOOL_CALL';
+
+export type AuditResourceType =
+  | 'USER'
+  | 'DOCTOR'
+  | 'DOCUMENT'
+  | 'SYSTEM_SETTING'
+  | 'LLM_PROVIDER'
+  | 'AGENT_SESSION'
+  | 'UNKNOWN';
+
+export interface AuditLogItem {
+  id: string;
+  user_id: string | null;
+  user_email: string | null;
+  user_role: string | null;
+  action: AuditActionType;
+  resource_type: AuditResourceType;
+  resource_id: string | null;
+  details: Record<string, unknown> | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  success: boolean;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface AuditLogStats {
+  total_today: number;
+  total_week: number;
+  failed_today: number;
+  action_breakdown: { action: string; count: number }[];
+}
+
+export interface AuditLogFilters {
+  action?: string;
+  user_id?: string;
+  resource_type?: string;
+  date_from?: string;
+  date_to?: string;
+  success?: boolean;
+  skip?: number;
+  limit?: number;
+}

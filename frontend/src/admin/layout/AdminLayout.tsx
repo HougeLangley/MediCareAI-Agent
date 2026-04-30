@@ -23,6 +23,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import HistoryIcon from '@mui/icons-material/History';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { logout, getMe } from '../../api/admin';
 import AdminLoginPage from '../pages/AdminLoginPage';
@@ -37,6 +38,7 @@ const NAV_ITEMS = [
   { path: '/admin/providers', label: 'LLM 供应商', icon: <SmartToyIcon /> },
   { path: '/admin/knowledge', label: '知识库管理', icon: <MenuBookIcon /> },
   { path: '/admin/reviews', label: '病例审核', icon: <AssignmentIcon /> },
+  { path: '/admin/audit-logs', label: '审计日志', icon: <HistoryIcon /> },
   { path: '/admin/settings', label: '系统设置', icon: <SettingsIcon /> },
 ];
 

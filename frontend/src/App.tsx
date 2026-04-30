@@ -10,6 +10,7 @@ import LLMProvidersPage from './admin/pages/LLMProvidersPage';
 import SystemSettingsPage from './admin/pages/SystemSettingsPage';
 import KnowledgeBasePage from './admin/pages/KnowledgeBasePage';
 import ReviewQueuePage from './admin/pages/ReviewQueuePage';
+import AuditLogsPage from './admin/pages/AuditLogsPage';
 import UsersPage from './admin/pages/UsersPage';
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
         <Route path="settings" element={<SystemSettingsPage />} />
         <Route path="knowledge" element={<KnowledgeBasePage />} />
         <Route path="reviews" element={<ReviewQueuePage />} />
+        <Route path="audit-logs" element={<AuditLogsPage />} />
       </Route>
         </Routes>
       </BrowserRouter>

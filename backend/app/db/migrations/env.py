@@ -13,6 +13,7 @@ from app.core.config import get_settings
 from app.db.session import Base
 from app.models import (  # noqa: F401 — registers all models with Base.metadata
     agent,
+    audit,
     config,
     medical_case,
     rag,
