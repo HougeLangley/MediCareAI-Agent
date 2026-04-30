@@ -705,3 +705,242 @@ async def verify_doctor(
     await db.commit()
     await db.refresh(doctor)
     return doctor
+
+
+# ─── Knowledge Base Management ─────────────────────────────────
+
+from app.models.rag import Document, DocumentReview, ReviewStatus
+from app.schemas.config import (
+    DocumentAdminCreate,
+    DocumentAdminUpdate,
+    DocumentDetail,
+    DocumentListItem,
+    DocumentReviewAction,
+    DocumentReviewItem,
+    ReviewQueueItem,
+)
+
+
+@router.get("/knowledge", response_model=list[DocumentListItem])
+async def list_documents(
+    doc_type: Annotated[str | None, Query(description="Filter by doc_type")] = None,
+    status: Annotated[str | None, Query(description="Filter by review_status")] = None,
+    search: Annotated[str | None, Query(description="Search by title", max_length=100)] = None,
+    is_active: Annotated[bool | None, Query(description="Filter by is_active")] = None,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    db: AsyncSession = Depends(get_db),
+) -> list[Document]:
+    """List knowledge base documents with filtering and pagination."""
+    stmt = select(Document).order_by(Document.created_at.desc())
+
+    if doc_type:
+        stmt = stmt.where(Document.doc_type == doc_type)
+    if status:
+        stmt = stmt.where(Document.review_status == status)
+    if is_active is not None:
+        stmt = stmt.where(Document.is_active == is_active)
+    if search:
+        search_term = f"%{search.strip()}%"
+        stmt = stmt.where(Document.title.ilike(search_term))
+
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+@router.get("/knowledge/{doc_id}", response_model=DocumentDetail)
+async def get_document(
+    doc_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> Document:
+    """Get a specific document by ID."""
+    result = await db.execute(select(Document).where(Document.id == doc_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document '{doc_id}' not found",
+        )
+    return doc
+
+
+@router.post("/knowledge", response_model=DocumentDetail, status_code=status.HTTP_201_CREATED)
+async def create_document_admin(
+    data: DocumentAdminCreate,
+    db: AsyncSession = Depends(get_db),
+) -> Document:
+    """Create a new knowledge document (admin only).
+
+    Automatically chunks and indexes the content.
+    """
+    from app.services.rag import RAGService
+
+    service = RAGService(db)
+    doc = await service.create_document(
+        title=data.title,
+        content=data.content,
+        doc_type=data.doc_type,
+        source_url=data.source_url,
+        department=data.department,
+        disease_tags=data.disease_tags,
+        drug_name=data.drug_name,
+        language=data.language,
+    )
+    # Update admin-specific fields
+    doc.is_featured = data.is_featured
+    doc.source_type = "admin_upload"
+    await db.commit()
+    await db.refresh(doc)
+    return doc
+
+
+@router.patch("/knowledge/{doc_id}", response_model=DocumentDetail)
+async def update_document_admin(
+    doc_id: str,
+    data: DocumentAdminUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> Document:
+    """Update a knowledge document (admin only)."""
+    result = await db.execute(select(Document).where(Document.id == doc_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document '{doc_id}' not found",
+        )
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(doc, field, value)
+
+    doc.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(doc)
+    return doc
+
+
+@router.delete("/knowledge/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_document_admin(
+    doc_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete a knowledge document (admin only)."""
+    result = await db.execute(select(Document).where(Document.id == doc_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document '{doc_id}' not found",
+        )
+    await db.delete(doc)
+    await db.commit()
+
+
+@router.patch("/knowledge/{doc_id}/toggle")
+async def toggle_document_active(
+    doc_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Toggle document active status."""
+    result = await db.execute(select(Document).where(Document.id == doc_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document '{doc_id}' not found",
+        )
+    doc.is_active = not doc.is_active
+    await db.commit()
+    await db.refresh(doc)
+    return {"id": str(doc.id), "is_active": doc.is_active}
+
+
+# ─── Document Review Queue ─────────────────────────────────
+
+
+@router.get("/knowledge/reviews", response_model=list[ReviewQueueItem])
+async def list_review_queue(
+    status: Annotated[str | None, Query(description="Filter by review_status")] = None,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    db: AsyncSession = Depends(get_db),
+) -> list[Document]:
+    """List documents in the review queue.
+
+    By default shows agent_reviewed documents awaiting doctor review.
+    """
+    stmt = select(Document).where(
+        Document.doc_type == DocType.CASE_REPORT
+    ).order_by(Document.created_at.desc())
+
+    if status:
+        stmt = stmt.where(Document.review_status == status)
+    else:
+        # Default: show pending and agent_reviewed
+        stmt = stmt.where(Document.review_status.in_([ReviewStatus.PENDING, ReviewStatus.AGENT_REVIEWED]))
+
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+@router.get("/knowledge/reviews/{doc_id}/history", response_model=list[DocumentReviewItem])
+async def get_document_review_history(
+    doc_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> list[DocumentReview]:
+    """Get review history for a specific document."""
+    result = await db.execute(
+        select(DocumentReview).where(DocumentReview.document_id == doc_id)
+        .order_by(DocumentReview.reviewed_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+@router.post("/knowledge/reviews/{doc_id}")
+async def review_document(
+    doc_id: str,
+    data: DocumentReviewAction,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Submit a review decision for a document (admin or doctor).
+
+    Actions: approve, reject, request_revision
+    """
+    result = await db.execute(select(Document).where(Document.id == doc_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document '{doc_id}' not found",
+        )
+
+    # Update document review status
+    if data.action == "approve":
+        doc.review_status = ReviewStatus.APPROVED
+        doc.is_active = True
+    elif data.action == "reject":
+        doc.review_status = ReviewStatus.REJECTED
+        doc.is_active = False
+    elif data.action == "request_revision":
+        doc.review_status = ReviewStatus.REVISION_REQUESTED
+
+    # Create review log
+    review = DocumentReview(
+        document_id=doc.id,
+        reviewer_type="admin",  # TODO: detect doctor vs admin from current_user
+        action=data.action,
+        score=data.score,
+        comments=data.comments,
+    )
+    db.add(review)
+    await db.commit()
+    await db.refresh(doc)
+
+    return {
+        "id": str(doc.id),
+        "review_status": doc.review_status.value,
+        "action": data.action,
+        "message": f"Document {data.action}d successfully",
+    }
