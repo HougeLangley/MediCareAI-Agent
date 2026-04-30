@@ -122,3 +122,10 @@ export interface UserAdminUpdate {
   department?: string | null;
   title?: string | null;
 }
+
+// ─── Doctor Verification ──────────────────────────────────────
+
+export interface DoctorVerifyRequest {
+  action: 'approve' | 'reject';
+  reason?: string;
+}

@@ -18,6 +18,7 @@ from app.models.config import LLMProviderConfig, SystemSetting
 from app.models.user import User, UserRole
 from app.schemas.config import (
     BatchSettingsRequest,
+    DoctorVerifyRequest,
     LLMProviderConfigCreate,
     LLMProviderConfigResponse,
     LLMProviderConfigUpdate,
@@ -645,3 +646,62 @@ async def update_user(
     await db.commit()
     await db.refresh(user)
     return user
+
+
+# ─── Doctor Verification ──────────────────────────────────────
+
+
+@router.get("/doctors", response_model=list[UserListItem])
+async def list_doctors(
+    is_verified: Annotated[bool | None, Query(description="Filter by verification status")] = None,
+    status: Annotated[str | None, Query(description="Filter by account status (active/inactive/pending)")] = None,
+    search: Annotated[str | None, Query(description="Search by email or full_name", max_length=100)] = None,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    db: AsyncSession = Depends(get_db),
+) -> list[User]:
+    """List all doctor users with optional filtering and search."""
+    stmt = select(User).where(User.role == UserRole.DOCTOR).order_by(User.created_at.desc())
+
+    if is_verified is not None:
+        stmt = stmt.where(User.is_verified == is_verified)
+    if status:
+        stmt = stmt.where(User.status == status.strip().lower())
+    if search:
+        search_term = f"%{search.strip()}%"
+        stmt = stmt.where(
+            (User.email.ilike(search_term)) | (User.full_name.ilike(search_term))
+        )
+
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+@router.post("/doctors/{doctor_id}/verify", response_model=UserListItem)
+async def verify_doctor(
+    doctor_id: str,
+    data: DoctorVerifyRequest,
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Approve or reject a doctor's verification application."""
+    result = await db.execute(
+        select(User).where(User.id == doctor_id, User.role == UserRole.DOCTOR)
+    )
+    doctor = result.scalar_one_or_none()
+    if not doctor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Doctor not found",
+        )
+
+    if data.action == "approve":
+        doctor.is_verified = True
+        doctor.status = "active"
+    else:
+        doctor.is_verified = False
+        doctor.status = "inactive"
+
+    await db.commit()
+    await db.refresh(doctor)
+    return doctor

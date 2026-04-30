@@ -20,6 +20,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import PeopleIcon from '@mui/icons-material/People';
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { logout, getMe } from '../../api/admin';
 import AdminLoginPage from '../pages/AdminLoginPage';
@@ -30,6 +31,7 @@ const DRAWER_WIDTH = 240;
 const NAV_ITEMS = [
   { path: '/admin', label: '仪表盘', icon: <DashboardIcon /> },
   { path: '/admin/users', label: '用户管理', icon: <PeopleIcon /> },
+  { path: '/admin/doctors', label: '医生认证', icon: <LocalHospitalIcon /> },
   { path: '/admin/providers', label: 'LLM 供应商', icon: <SmartToyIcon /> },
   { path: '/admin/settings', label: '系统设置', icon: <SettingsIcon /> },
 ];

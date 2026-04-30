@@ -233,3 +233,33 @@ export async function updateUser(id: string, data: UserAdminUpdate): Promise<Use
   });
   return handleResponse<UserItem>(res);
 }
+
+// ─── Doctor Verification ──────────────────────────────────────
+
+import type { DoctorVerifyRequest } from '../types/admin';
+
+export async function listDoctors(params?: {
+  is_verified?: boolean;
+  status?: string;
+  search?: string;
+  skip?: number;
+  limit?: number;
+}): Promise<UserItem[]> {
+  const url = new URL(`${API_BASE}/admin/doctors`, window.location.origin);
+  if (params?.is_verified !== undefined) url.searchParams.set('is_verified', String(params.is_verified));
+  if (params?.status) url.searchParams.set('status', params.status);
+  if (params?.search) url.searchParams.set('search', params.search);
+  if (params?.skip !== undefined) url.searchParams.set('skip', String(params.skip));
+  if (params?.limit !== undefined) url.searchParams.set('limit', String(params.limit));
+  const res = await fetch(url.toString(), { headers: authHeaders() });
+  return handleResponse<UserItem[]>(res);
+}
+
+export async function verifyDoctor(id: string, data: DoctorVerifyRequest): Promise<UserItem> {
+  const res = await fetch(`${API_BASE}/admin/doctors/${id}/verify`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<UserItem>(res);
+}

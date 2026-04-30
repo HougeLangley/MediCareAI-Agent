@@ -129,3 +129,10 @@ class UserAdminUpdate(BaseModel):
     hospital: str | None = Field(None, max_length=255)
     department: str | None = Field(None, max_length=100)
     title: str | None = Field(None, max_length=50)
+
+
+class DoctorVerifyRequest(BaseModel):
+    """Doctor verification approval / rejection request."""
+
+    action: str = Field(..., pattern=r"^(approve|reject)$")
+    reason: str | None = Field(None, max_length=500)
