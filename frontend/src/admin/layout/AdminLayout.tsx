@@ -19,6 +19,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import PeopleIcon from '@mui/icons-material/People';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { logout, getMe } from '../../api/admin';
 import AdminLoginPage from '../pages/AdminLoginPage';
@@ -28,6 +29,7 @@ const DRAWER_WIDTH = 240;
 
 const NAV_ITEMS = [
   { path: '/admin', label: '仪表盘', icon: <DashboardIcon /> },
+  { path: '/admin/users', label: '用户管理', icon: <PeopleIcon /> },
   { path: '/admin/providers', label: 'LLM 供应商', icon: <SmartToyIcon /> },
   { path: '/admin/settings', label: '系统设置', icon: <SettingsIcon /> },
 ];
@@ -99,26 +101,31 @@ export default function AdminLayout() {
       </Toolbar>
       <Divider />
       <List>
-        {NAV_ITEMS.map((item) => (
-          <ListItem key={item.path} disablePadding>
-            <ListItemButton
-              component={Link}
-              to={item.path}
-              selected={location.pathname === item.path}
-              sx={{
-                '&.Mui-selected': {
-                  bgcolor: '#E3F2FD',
-                  borderRight: '3px solid #1565C0',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: location.pathname === item.path ? '#1565C0' : 'inherit' }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          </ListItem>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          const isSelected =
+            location.pathname === item.path ||
+            (item.path !== '/admin' && location.pathname.startsWith(item.path));
+          return (
+            <ListItem key={item.path} disablePadding>
+              <ListItemButton
+                component={Link}
+                to={item.path}
+                selected={isSelected}
+                sx={{
+                  '&.Mui-selected': {
+                    bgcolor: '#E3F2FD',
+                    borderRight: '3px solid #1565C0',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ color: isSelected ? '#1565C0' : 'inherit' }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText primary={item.label} />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
       </List>
       <Divider />
       <List>
@@ -154,7 +161,9 @@ export default function AdminLayout() {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            {NAV_ITEMS.find((i) => i.path === location.pathname)?.label || '管理后台'}
+            {NAV_ITEMS.find(
+              (i) => i.path === location.pathname || (i.path !== '/admin' && location.pathname.startsWith(i.path))
+            )?.label || '管理后台'}
           </Typography>
         </Toolbar>
       </AppBar>

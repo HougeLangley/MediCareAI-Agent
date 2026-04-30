@@ -7,6 +7,7 @@ import AdminLayout from './admin/layout/AdminLayout';
 import DashboardPage from './admin/pages/DashboardPage';
 import LLMProvidersPage from './admin/pages/LLMProvidersPage';
 import SystemSettingsPage from './admin/pages/SystemSettingsPage';
+import UsersPage from './admin/pages/UsersPage';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="/" element={<ChatPage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route path="users" element={<UsersPage />} />
             <Route path="providers" element={<LLMProvidersPage />} />
             <Route path="settings" element={<SystemSettingsPage />} />
           </Route>

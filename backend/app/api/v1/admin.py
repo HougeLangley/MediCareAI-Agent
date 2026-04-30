@@ -24,6 +24,8 @@ from app.schemas.config import (
     SystemSettingCreate,
     SystemSettingResponse,
     SystemSettingUpdate,
+    UserAdminUpdate,
+    UserListItem,
 )
 from app.services.llm import LLMService
 
@@ -554,3 +556,92 @@ async def dashboard_stats(
         "system_settings": settings_count,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ─── User Management ────────────────────────────────────────────
+
+
+@router.get("/users", response_model=list[UserListItem])
+async def list_users(
+    role: Annotated[str | None, Query(description="Filter by role (patient/doctor/admin)")] = None,
+    status: Annotated[str | None, Query(description="Filter by status (active/inactive/pending)")] = None,
+    search: Annotated[str | None, Query(description="Search by email or full_name", max_length=100)] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(ge=1, le=100, description="Max records to return")] = 50,
+    db: AsyncSession = Depends(get_db),
+) -> list[User]:
+    """List all users with optional filtering, search, and pagination."""
+    stmt = select(User).order_by(User.created_at.desc())
+
+    if role:
+        stmt = stmt.where(User.role == role.strip().lower())
+    if status:
+        stmt = stmt.where(User.status == status.strip().lower())
+    if search:
+        search_term = f"%{search.strip()}%"
+        stmt = stmt.where(
+            (User.email.ilike(search_term)) | (User.full_name.ilike(search_term))
+        )
+
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+@router.get("/users/{user_id}", response_model=UserListItem)
+async def get_user(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Get a specific user by ID."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User '{user_id}' not found",
+        )
+    return user
+
+
+@router.patch("/users/{user_id}", response_model=UserListItem)
+async def update_user(
+    user_id: str,
+    data: UserAdminUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Update a user (admin only).
+
+    Allows modifying status, verification, and doctor-specific fields.
+    Does NOT allow changing role or password — use dedicated endpoints.
+    """
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User '{user_id}' not found",
+        )
+
+    # Prevent modifying the last admin's status
+    if user.role == UserRole.ADMIN and data.status is not None and data.status != "active":
+        # Count active admins
+        from sqlalchemy import func as sql_func
+        admin_count = await db.execute(
+            select(sql_func.count(User.id)).where(
+                User.role == UserRole.ADMIN, User.status == "active"
+            )
+        )
+        if (admin_count.scalar() or 0) <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot deactivate the only active admin account",
+            )
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(user, field, value)
+
+    await db.commit()
+    await db.refresh(user)
+    return user

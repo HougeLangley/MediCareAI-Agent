@@ -198,3 +198,38 @@ export function logout(): void {
 export function isLoggedIn(): boolean {
   return !!getToken();
 }
+
+// ─── User Management ────────────────────────────────────────────
+
+import type { UserItem, UserAdminUpdate } from '../types/admin';
+
+export async function listUsers(params?: {
+  role?: string;
+  status?: string;
+  search?: string;
+  skip?: number;
+  limit?: number;
+}): Promise<UserItem[]> {
+  const url = new URL(`${API_BASE}/admin/users`, window.location.origin);
+  if (params?.role) url.searchParams.set('role', params.role);
+  if (params?.status) url.searchParams.set('status', params.status);
+  if (params?.search) url.searchParams.set('search', params.search);
+  if (params?.skip !== undefined) url.searchParams.set('skip', String(params.skip));
+  if (params?.limit !== undefined) url.searchParams.set('limit', String(params.limit));
+  const res = await fetch(url.toString(), { headers: authHeaders() });
+  return handleResponse<UserItem[]>(res);
+}
+
+export async function getUser(id: string): Promise<UserItem> {
+  const res = await fetch(`${API_BASE}/admin/users/${id}`, { headers: authHeaders() });
+  return handleResponse<UserItem>(res);
+}
+
+export async function updateUser(id: string, data: UserAdminUpdate): Promise<UserItem> {
+  const res = await fetch(`${API_BASE}/admin/users/${id}`, {
+    method: 'PATCH',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<UserItem>(res);
+}

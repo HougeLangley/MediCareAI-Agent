@@ -94,3 +94,33 @@ export interface ProviderTestResult {
   detail?: string;
   available_models?: string[];
 }
+
+// ─── User Management ────────────────────────────────────────────
+
+export interface UserItem {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  role: string;
+  status: string;
+  is_verified: boolean;
+  license_number: string | null;
+  hospital: string | null;
+  department: string | null;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+  last_login_at: string | null;
+}
+
+export interface UserAdminUpdate {
+  full_name?: string;
+  phone?: string | null;
+  status?: string;
+  is_verified?: boolean;
+  license_number?: string | null;
+  hospital?: string | null;
+  department?: string | null;
+  title?: string | null;
+}

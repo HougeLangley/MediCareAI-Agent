@@ -95,3 +95,39 @@ class BatchSettingsRequest(BaseModel):
     """Batch update system settings request."""
 
     items: list[SystemSettingCreate]
+
+
+# ─── User Management (Admin) ─────────────────────────────
+
+class UserListItem(BaseModel):
+    """Simplified user item for admin list view."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: str
+    full_name: str
+    phone: str | None
+    role: str
+    status: str
+    is_verified: bool
+    license_number: str | None
+    hospital: str | None
+    department: str | None
+    title: str | None
+    created_at: datetime
+    updated_at: datetime
+    last_login_at: datetime | None
+
+
+class UserAdminUpdate(BaseModel):
+    """Admin update user request."""
+
+    full_name: str | None = Field(None, min_length=1, max_length=255)
+    phone: str | None = Field(None, max_length=50)
+    status: str | None = Field(None, pattern=r"^(active|inactive|pending)$")
+    is_verified: bool | None = None
+    license_number: str | None = Field(None, max_length=100)
+    hospital: str | None = Field(None, max_length=255)
+    department: str | None = Field(None, max_length=100)
+    title: str | None = Field(None, max_length=50)
