@@ -150,6 +150,7 @@ export interface DocumentItem {
   vectorized_at: string | null;
   created_at: string;
   updated_at: string;
+  source_url?: string | null;
 }
 
 export interface DocumentDetail extends DocumentItem {

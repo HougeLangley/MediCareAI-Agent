@@ -21,6 +21,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import PeopleIcon from '@mui/icons-material/People';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { logout, getMe } from '../../api/admin';
 import AdminLoginPage from '../pages/AdminLoginPage';
@@ -33,6 +35,8 @@ const NAV_ITEMS = [
   { path: '/admin/users', label: '用户管理', icon: <PeopleIcon /> },
   { path: '/admin/doctors', label: '医生认证', icon: <LocalHospitalIcon /> },
   { path: '/admin/providers', label: 'LLM 供应商', icon: <SmartToyIcon /> },
+  { path: '/admin/knowledge', label: '知识库管理', icon: <MenuBookIcon /> },
+  { path: '/admin/reviews', label: '病例审核', icon: <AssignmentIcon /> },
   { path: '/admin/settings', label: '系统设置', icon: <SettingsIcon /> },
 ];
 

@@ -8,6 +8,8 @@ import DashboardPage from './admin/pages/DashboardPage';
 import DoctorVerificationPage from './admin/pages/DoctorVerificationPage';
 import LLMProvidersPage from './admin/pages/LLMProvidersPage';
 import SystemSettingsPage from './admin/pages/SystemSettingsPage';
+import KnowledgeBasePage from './admin/pages/KnowledgeBasePage';
+import ReviewQueuePage from './admin/pages/ReviewQueuePage';
 import UsersPage from './admin/pages/UsersPage';
 
 function App() {
@@ -22,8 +24,10 @@ function App() {
             <Route path="users" element={<UsersPage />} />
             <Route path="doctors" element={<DoctorVerificationPage />} />
             <Route path="providers" element={<LLMProvidersPage />} />
-            <Route path="settings" element={<SystemSettingsPage />} />
-          </Route>
+        <Route path="settings" element={<SystemSettingsPage />} />
+        <Route path="knowledge" element={<KnowledgeBasePage />} />
+        <Route path="reviews" element={<ReviewQueuePage />} />
+      </Route>
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
