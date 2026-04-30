@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, startTransition } from 'react';
 import {
   Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, FormControlLabel, InputLabel, MenuItem, Select, Switch, Tab, Tabs,
@@ -114,29 +114,65 @@ export default function SystemSettingsPage() {
     options: '',
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await listSettings();
-      setSettings(data);
-      // Set active tab to first non-empty category
-      const cats = Array.from(new Set(data.map((s) => s.category)));
-      if (cats.length > 0 && !cats.includes(activeTab)) {
-        const first = CATEGORY_ORDER.find((c) => cats.includes(c)) || cats[0];
-        setActiveTab(first);
-      }
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
+  // 数据获取：内联到 effect 中
+  useEffect(() => {
+    let cancelled = false;
+
+    startTransition(() => {
+      setLoading(true);
+      setError('');
+    });
+
+    listSettings()
+      .then((data) => {
+        if (!cancelled) {
+          setSettings(data);
+          const cats = Array.from(new Set(data.map((s) => s.category)));
+          if (cats.length > 0 && !cats.includes(activeTab)) {
+            const first = CATEGORY_ORDER.find((c) => cats.includes(c)) || cats[0];
+            setActiveTab(first);
+          }
+        }
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeTab]);
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 手动刷新
+  const handleRefresh = useCallback(() => {
+    const cancelled = false;
+
+    startTransition(() => {
+      setLoading(true);
+      setError('');
+    });
+
+    listSettings()
+      .then((data) => {
+        if (!cancelled) {
+          setSettings(data);
+          const cats = Array.from(new Set(data.map((s) => s.category)));
+          if (cats.length > 0 && !cats.includes(activeTab)) {
+            const first = CATEGORY_ORDER.find((c) => cats.includes(c)) || cats[0];
+            setActiveTab(first);
+          }
+        }
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+  }, [activeTab]);
 
   const handleChange = (key: string, val: string) => {
     setSettings((prev) => prev.map((s) => (s.key === key ? { ...s, value: val } : s)));
@@ -202,7 +238,7 @@ export default function SystemSettingsPage() {
         options: form.options || null,
       });
       setOpenDialog(false);
-      load();
+      handleRefresh();
     } catch (e: unknown) {
       setError((e as Error).message);
     }

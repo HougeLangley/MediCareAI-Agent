@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, startTransition } from 'react';
 import {
   Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, FormControlLabel, IconButton, InputLabel, MenuItem, Select, Switch,
@@ -52,27 +52,61 @@ export default function UsersPage() {
   const [form, setForm] = useState<UserAdminUpdate>({});
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await listUsers({
-        search: search || undefined,
-        role: roleFilter || undefined,
-        status: statusFilter || undefined,
-        limit: 100,
+  // 数据获取：内联到 effect 中
+  useEffect(() => {
+    let cancelled = false;
+
+    startTransition(() => {
+      setLoading(true);
+      setError('');
+    });
+
+    listUsers({
+      search: search || undefined,
+      role: roleFilter || undefined,
+      status: statusFilter || undefined,
+      limit: 100,
+    })
+      .then((data) => {
+        if (!cancelled) setUsers(data);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-      setUsers(data);
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
+
+    return () => {
+      cancelled = true;
+    };
   }, [search, roleFilter, statusFilter]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // 手动刷新
+  const handleRefresh = useCallback(() => {
+    const cancelled = false;
+
+    startTransition(() => {
+      setLoading(true);
+      setError('');
+    });
+
+    listUsers({
+      search: search || undefined,
+      role: roleFilter || undefined,
+      status: statusFilter || undefined,
+      limit: 100,
+    })
+      .then((data) => {
+        if (!cancelled) setUsers(data);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+  }, [search, roleFilter, statusFilter]);
 
   const handleOpenEdit = (u: UserItem) => {
     setEditingUser(u);
@@ -97,7 +131,7 @@ export default function UsersPage() {
       await updateUser(editingUser.id, form);
       setSuccess('用户信息已更新');
       setOpenDialog(false);
-      load();
+      handleRefresh();
       setTimeout(() => setSuccess(''), 3000);
     } catch (e: unknown) {
       setError((e as Error).message);
@@ -168,7 +202,7 @@ export default function UsersPage() {
             </FormControl>
           </Grid>
           <Grid size={{ xs: 12, md: 2 }}>
-            <Button variant="outlined" fullWidth onClick={load} disabled={loading}>
+            <Button variant="outlined" fullWidth onClick={handleRefresh} disabled={loading}>
               {loading ? <CircularProgress size={16} /> : '刷新'}
             </Button>
           </Grid>

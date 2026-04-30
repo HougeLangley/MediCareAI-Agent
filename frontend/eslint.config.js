@@ -23,9 +23,9 @@ export default defineConfig([
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
 
-      // 以下规则对现有项目过于严格，降级为 warn 或关闭
-      // set-state-in-effect: 数据获取在 useEffect 中是标准模式
-      'react-hooks/set-state-in-effect': 'off',
+      // 对于数据获取场景，使用 startTransition 后可以避免级联渲染
+      // 保持该规则为 error，确保代码质量
+      'react-hooks/set-state-in-effect': 'error',
       // 其他实验性规则降级，避免阻碍开发
       'react-hooks/use-memo': 'off',
       'react-hooks/preserve-manual-memoization': 'off',

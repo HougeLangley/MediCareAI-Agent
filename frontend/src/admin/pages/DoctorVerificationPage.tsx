@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, startTransition } from 'react';
 import {
   Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, FormControlLabel, IconButton, InputLabel, MenuItem, Select, Switch,
@@ -55,34 +55,75 @@ export default function DoctorVerificationPage() {
   const [form, setForm] = useState<UserAdminUpdate>({});
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const params: Record<string, unknown> = { role: 'doctor', limit: 100 };
-      if (search) params.search = search;
+  // 数据获取：内联到 effect 中，避免间接 setState
+  useEffect(() => {
+    let cancelled = false;
 
-      if (tab === 'pending') {
-        params.status = 'pending';
-      } else if (tab === 'verified') {
-        params.is_verified = true;
-      } else if (tab === 'rejected') {
-        params.status = 'inactive';
-        params.is_verified = false;
-      }
+    startTransition(() => {
+      setLoading(true);
+      setError('');
+    });
 
-      const data = await listDoctors(params);
-      setDoctors(data);
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
+    const params: Record<string, unknown> = { role: 'doctor', limit: 100 };
+    if (search) params.search = search;
+
+    if (tab === 'pending') {
+      params.status = 'pending';
+    } else if (tab === 'verified') {
+      params.is_verified = true;
+    } else if (tab === 'rejected') {
+      params.status = 'inactive';
+      params.is_verified = false;
     }
+
+    listDoctors(params)
+      .then((data) => {
+        if (!cancelled) setDoctors(data);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [tab, search]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // 手动刷新
+  const handleRefresh = useCallback(() => {
+    const cancelled = false;
+
+    startTransition(() => {
+      setLoading(true);
+      setError('');
+    });
+
+    const params: Record<string, unknown> = { role: 'doctor', limit: 100 };
+    if (search) params.search = search;
+
+    if (tab === 'pending') {
+      params.status = 'pending';
+    } else if (tab === 'verified') {
+      params.is_verified = true;
+    } else if (tab === 'rejected') {
+      params.status = 'inactive';
+      params.is_verified = false;
+    }
+
+    listDoctors(params)
+      .then((data) => {
+        if (!cancelled) setDoctors(data);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+  }, [tab, search]);
 
   const handleOpenVerify = (u: UserItem, action: 'approve' | 'reject') => {
     setVerifyUser(u);
@@ -103,7 +144,7 @@ export default function DoctorVerificationPage() {
       });
       setSuccess(verifyAction === 'approve' ? '医生认证已通过' : '医生认证已拒绝');
       setVerifyOpen(false);
-      load();
+      handleRefresh();
       setTimeout(() => setSuccess(''), 3000);
     } catch (e: unknown) {
       setError((e as Error).message);
@@ -135,7 +176,7 @@ export default function DoctorVerificationPage() {
       await updateUser(editingUser.id, form);
       setSuccess('医生信息已更新');
       setEditOpen(false);
-      load();
+      handleRefresh();
       setTimeout(() => setSuccess(''), 3000);
     } catch (e: unknown) {
       setError((e as Error).message);
@@ -191,7 +232,7 @@ export default function DoctorVerificationPage() {
             />
           </Grid>
           <Grid size={{ xs: 12, md: 3 }}>
-            <Button variant="outlined" fullWidth onClick={load} disabled={loading}>
+            <Button variant="outlined" fullWidth onClick={handleRefresh} disabled={loading}>
               {loading ? <CircularProgress size={16} /> : '刷新'}
             </Button>
           </Grid>

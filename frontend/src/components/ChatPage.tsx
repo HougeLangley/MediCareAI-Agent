@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import {
   Box,
   CssBaseline,
@@ -34,20 +34,19 @@ export default function ChatPage() {
   const [currentSessionId, setCurrentSessionId] = useState<string>();
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [guestStatus, setGuestStatus] = useState<GuestStatus | null>(null);
+  // 使用 lazy initializer 获取 guestStatus，避免在 effect 中同步 setState
+  const [guestStatus] = useState<GuestStatus | null>(() => agentApi.getGuestStatus());
   const [showScrollDown, setShowScrollDown] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const didInit = useRef(false);
 
-  useEffect(() => {
-    const g = agentApi.getGuestStatus();
-    setGuestStatus(g);
-  }, []);
-
+  // 滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // 滚动监听
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -55,6 +54,7 @@ export default function ChatPage() {
     setShowScrollDown(!nearBottom);
   }, []);
 
+  // 创建新对话
   const startNewSession = useCallback(() => {
     const id = generateId();
     const newSession: ChatSession = {
@@ -76,8 +76,16 @@ export default function ChatPage() {
     ]);
   }, []);
 
-  useEffect(() => {
-    if (sessions.length === 0) startNewSession();
+  // 初始化：使用 useLayoutEffect + setTimeout 将 setState 延迟到下一个 tick
+  useLayoutEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+
+    const timer = setTimeout(() => {
+      if (sessions.length === 0) startNewSession();
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [sessions.length, startNewSession]);
 
   const handleSend = useCallback(

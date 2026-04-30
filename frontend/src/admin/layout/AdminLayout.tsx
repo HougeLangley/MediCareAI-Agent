@@ -38,40 +38,48 @@ const NAV_ITEMS = [
 
 export default function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [needPasswordChange, setNeedPasswordChange] = useState(false);
+  // 将 localStorage 检查移到初始状态计算，避免在 effect 同步体中 setState
+  const [authState, setAuthState] = useState(() => {
+    const token = localStorage.getItem('access_token');
+    return {
+      checked: !token,      // 无 token 时已检查完毕
+      authenticated: !!token,
+      needPasswordChange: false,
+    };
+  });
   const navigate = useNavigate();
   const location = useLocation();
+
+  const { checked: authChecked, authenticated: isAuthenticated, needPasswordChange } = authState;
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (!token) {
-      setAuthChecked(true);
-      setIsAuthenticated(false);
+      // 无 token 时初始状态已正确，无需同步 setState
       return;
     }
-    // Validate token
+    // 异步验证 token
     getMe()
       .then((user) => {
-        setIsAuthenticated(true);
-        if (user.password_change_required || localStorage.getItem('password_change_required') === 'true') {
-          setNeedPasswordChange(true);
-        }
+        setAuthState({
+          checked: true,
+          authenticated: true,
+          needPasswordChange:
+            user.password_change_required ||
+            localStorage.getItem('password_change_required') === 'true',
+        });
       })
       .catch(() => {
         logout();
-        setIsAuthenticated(false);
-      })
-      .finally(() => setAuthChecked(true));
+        setAuthState({ checked: true, authenticated: false, needPasswordChange: false });
+      });
   }, [location.pathname]);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
   const handleLogout = () => {
     logout();
-    setIsAuthenticated(false);
-    setNeedPasswordChange(false);
+    setAuthState({ checked: true, authenticated: false, needPasswordChange: false });
     navigate('/admin');
   };
 
