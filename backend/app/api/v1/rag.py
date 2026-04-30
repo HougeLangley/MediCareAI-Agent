@@ -23,8 +23,11 @@ class DocumentCreate(BaseModel):
 
     title: str = Field(..., min_length=1, max_length=500)
     content: str = Field(..., min_length=10)
-    doc_type: DocType = DocType.GUIDELINE
-    source: str | None = Field(None, max_length=500)
+    doc_type: DocType = DocType.PLATFORM_GUIDELINE
+    source_url: str | None = Field(None, max_length=1000)
+    department: str | None = Field(None, max_length=100)
+    disease_tags: list[str] = Field(default_factory=list)
+    drug_name: str | None = Field(None, max_length=200)
     language: str = "zh"
 
 
@@ -70,7 +73,10 @@ async def create_document(
         title=data.title,
         content=data.content,
         doc_type=data.doc_type,
-        source=data.source,
+        source_url=data.source_url,
+        department=data.department,
+        disease_tags=data.disease_tags,
+        drug_name=data.drug_name,
         language=data.language,
     )
     return DocumentResponse(

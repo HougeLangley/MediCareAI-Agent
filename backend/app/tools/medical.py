@@ -29,7 +29,7 @@ class SearchKnowledgeParams(BaseModel):
     query: str = Field(..., description="The medical question or keywords to search", min_length=1)
     doc_type: str | None = Field(
         None,
-        description="Filter by document type: guideline, paper, case_report, drug_info, textbook",
+        description="Filter by document type: platform_guideline, case_report, drug_reference",
     )
     top_k: int = Field(5, description="Number of top results to retrieve", ge=1, le=20)
 

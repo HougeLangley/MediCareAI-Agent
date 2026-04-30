@@ -2,6 +2,8 @@
 
 MVP implementation using PostgreSQL ILIKE for Chinese text search.
 Phase 2: upgrade to pgvector for semantic search.
+
+SearXNG integration planned for real-time external knowledge retrieval.
 """
 
 import uuid
@@ -37,7 +39,7 @@ class RAGService:
             if end < len(text):
                 search_start = max(start, end - 100)
                 for i in range(end, search_start, -1):
-                    if text[i] in "\n\u3002\uff01\uff1f.!?":
+                    if text[i] in "\n\u3002\uff01\uff1f.!？":
                         end = i + 1
                         break
             chunks.append(text[start:end])
@@ -50,16 +52,22 @@ class RAGService:
         self,
         title: str,
         content: str,
-        doc_type: DocType = DocType.GUIDELINE,
-        source: str | None = None,
+        doc_type: DocType = DocType.PLATFORM_GUIDELINE,
+        source_url: str | None = None,
+        department: str | None = None,
+        disease_tags: list[str] | None = None,
+        drug_name: str | None = None,
         language: str = "zh",
     ) -> Document:
         """Create a document with auto-chunking."""
         doc = Document(
             title=title,
-            source=source,
             doc_type=doc_type,
             content=content,
+            source_url=source_url,
+            department=department,
+            disease_tags=disease_tags or [],
+            drug_name=drug_name,
             language=language,
         )
         self.db.add(doc)
@@ -126,7 +134,8 @@ class RAGService:
             Document.doc_type,
             func.length(DocumentChunk.content).label("rank"),
         ).join(Document).where(
-            DocumentChunk.content.ilike(f"%{primary_term}%")
+            DocumentChunk.content.ilike(f"%{primary_term}%"),
+            Document.is_active == True,
         )
 
         if doc_type:
@@ -158,21 +167,21 @@ class RAGService:
     ) -> str:
         """Generate answer using retrieved context + LLM."""
         context = "\n\n---\n\n".join(
-            f"[\u6765\u6e90: {c['document_title']}]\n{c['content']}"
+            f"[来源: {c['document_title']}]\n{c['content']}"
             for c in context_chunks
         )
 
         # Try LLM generation; fallback to context summary if no API key
         try:
             default_system = (
-                "\u4f60\u662f\u4e00\u4f4d\u4e13\u4e1a\u7684\u533b\u7597AI\u52a9\u624b\u3002\u8bf7\u57fa\u4e8e\u4ee5\u4e0b\u53c2\u8003\u6587\u732e\u56de\u7b54\u95ee\u9898\uff0c"
-                "\u5982\u679c\u53c2\u8003\u6587\u732e\u4e0d\u8db3\u4ee5\u56de\u7b54\uff0c\u8bf7\u660e\u786e\u544a\u77e5\u3002"
-                "\u56de\u7b54\u8981\u6c42\uff1a\u51c6\u786e\u3001\u7b80\u6d01\u3001\u4e13\u4e1a\u3002"
+                "你是一位专业的医疗AI助手。请基于以下参考文献回答问题，"
+                "如果参考文献不足以回答，请明确告知。"
+                "回答要求：准确、简洁、专业。"
             )
 
             messages = [
                 {"role": "system", "content": system_prompt or default_system},
-                {"role": "user", "content": f"\u95ee\u9898\uff1a{query}\n\n\u53c2\u8003\u6587\u732e\uff1a\n{context}"},
+                {"role": "user", "content": f"问题：{query}\n\n参考文献：\n{context}"},
             ]
 
             llm = LLMService(provider=provider, db=self.db)
@@ -181,9 +190,9 @@ class RAGService:
         except ValueError:
             # No API key configured — return context as-is with disclaimer
             return (
-                "[LLM \u672a\u914d\u7f6e] \u4ee5\u4e0b\u662f\u68c0\u7d22\u5230\u7684\u76f8\u5173\u53c2\u8003\u6587\u732e\uff1a\n\n"
+                "[LLM 未配置] 以下是检索到的相关参考文献：\n\n"
                 + context
-                + "\n\n\u6ce8\uff1a\u5f53\u524d\u672a\u914d\u7f6e LLM API Key\uff0c\u56e0\u6b64\u8fd4\u56de\u539f\u6587\u6458\u8981\u3002"
+                + "\n\n注：当前未配置 LLM API Key，因此返回原文摘要。"
             )
 
     async def query(
@@ -197,7 +206,7 @@ class RAGService:
         chunks = await self.search(query, doc_type=doc_type, top_k=top_k)
         if not chunks:
             return {
-                "answer": "\u672a\u627e\u5230\u76f8\u5173\u53c2\u8003\u6587\u732e\uff0c\u65e0\u6cd5\u56de\u7b54\u8be5\u95ee\u9898\u3002",
+                "answer": "未找到相关参考文献，无法回答该问题。",
                 "sources": [],
                 "retrieved_chunks": 0,
             }
