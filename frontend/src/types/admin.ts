@@ -284,3 +284,233 @@ export interface AuditLogFilters {
   skip?: number;
   limit?: number;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// Notifications | 站内信
+// ═══════════════════════════════════════════════════════════════
+
+export type NotificationType = 'system' | 'announcement' | 'direct' | 'reminder';
+export type NotificationPriority = 'high' | 'medium' | 'low';
+
+export interface NotificationSender {
+  id: string;
+  full_name: string;
+  role: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  notification_type: NotificationType;
+  priority: NotificationPriority;
+  subject: string;
+  content_preview: string;
+  is_read: boolean;
+  read_at: string | null;
+  broadcast: boolean;
+  sender: NotificationSender | null;
+  created_at: string;
+}
+
+export interface NotificationDetail {
+  id: string;
+  notification_type: NotificationType;
+  priority: NotificationPriority;
+  subject: string;
+  content: string;
+  action_url: string | null;
+  is_read: boolean;
+  read_at: string | null;
+  broadcast: boolean;
+  sender: NotificationSender | null;
+  recipient: NotificationSender | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationListResponse {
+  items: NotificationItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  unread_count: number;
+}
+
+export interface NotificationUnreadCount {
+  total: number;
+  system: number;
+  announcement: number;
+  direct: number;
+  reminder: number;
+}
+
+export interface NotificationCreate {
+  notification_type: NotificationType;
+  priority: NotificationPriority;
+  subject: string;
+  content: string;
+  recipient_id?: string | null;
+  action_url?: string | null;
+  broadcast?: boolean;
+}
+
+export interface NotificationBroadcastCreate {
+  subject: string;
+  content: string;
+  priority?: NotificationPriority;
+  action_url?: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Email Management | 邮件管理
+// ═══════════════════════════════════════════════════════════════
+
+export type SmtpSecurity = 'starttls' | 'ssl' | 'none';
+export type EmailSendStatus = 'pending' | 'sent' | 'failed' | 'retrying';
+
+export interface EmailConfig {
+  id: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_user: string;
+  smtp_from_email: string;
+  smtp_from_name: string;
+  smtp_security: SmtpSecurity;
+  is_active: boolean;
+  is_default: boolean;
+  test_status: string;
+  test_message: string | null;
+  tested_at: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailConfigCreate {
+  smtp_host: string;
+  smtp_port: number;
+  smtp_user: string;
+  smtp_password: string;
+  smtp_from_email: string;
+  smtp_from_name?: string;
+  smtp_security?: SmtpSecurity;
+  description?: string | null;
+  is_default?: boolean;
+}
+
+export interface EmailConfigUpdate {
+  smtp_host?: string;
+  smtp_port?: number;
+  smtp_user?: string;
+  smtp_password?: string;
+  smtp_from_email?: string;
+  smtp_from_name?: string;
+  smtp_security?: SmtpSecurity;
+  is_active?: boolean;
+  is_default?: boolean;
+  description?: string | null;
+}
+
+export interface EmailConfigListResponse {
+  items: EmailConfig[];
+  total: number;
+}
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  subject: string;
+  html_body: string;
+  text_body: string | null;
+  variables: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailTemplateCreate {
+  name: string;
+  description?: string | null;
+  subject: string;
+  html_body: string;
+  text_body?: string | null;
+  variables?: string | null;
+  is_active?: boolean;
+}
+
+export interface EmailTemplateUpdate {
+  name?: string;
+  description?: string | null;
+  subject?: string;
+  html_body?: string;
+  text_body?: string | null;
+  variables?: string | null;
+  is_active?: boolean;
+}
+
+export interface EmailTemplateListResponse {
+  items: EmailTemplate[];
+  total: number;
+}
+
+export interface EmailLog {
+  id: string;
+  config_id: string | null;
+  template_id: string | null;
+  recipient_email: string;
+  subject: string;
+  body_preview: string | null;
+  status: EmailSendStatus;
+  retry_count: number;
+  error_message: string | null;
+  sent_at: string | null;
+  failed_at: string | null;
+  created_at: string;
+}
+
+export interface EmailLogListResponse {
+  items: EmailLog[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface EmailProviderPreset {
+  id: string;
+  name: string;
+  category: string;
+  category_label: string;
+  icon: string;
+  description: string;
+  smtp: {
+    host: string;
+    port: number;
+    security: SmtpSecurity;
+  };
+  help_text: string;
+  help_link: string | null;
+}
+
+export interface EmailProviderCategory {
+  label: string;
+  description: string;
+  icon: string;
+}
+
+export interface EmailProviderPresetsResponse {
+  providers: EmailProviderPreset[];
+  categories: Record<string, EmailProviderCategory>;
+}
+
+export interface EmailServiceStatus {
+  is_available: boolean;
+  config_source: string;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_user: string | null;
+  from_email: string | null;
+  from_name: string | null;
+  smtp_security: SmtpSecurity | null;
+}

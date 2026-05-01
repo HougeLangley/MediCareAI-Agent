@@ -42,6 +42,7 @@ dependencies = [
     "sentry-sdk[fastapi]>=2.19.0",
     "pgvector>=0.3.6",
     "cryptography>=42.0.0",
+    "aiosmtplib>=3.0.0",
 ]
 
 [project.optional-dependencies]

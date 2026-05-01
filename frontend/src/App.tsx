@@ -12,6 +12,8 @@ import KnowledgeBasePage from './admin/pages/KnowledgeBasePage';
 import ReviewQueuePage from './admin/pages/ReviewQueuePage';
 import AuditLogsPage from './admin/pages/AuditLogsPage';
 import UsersPage from './admin/pages/UsersPage';
+import NotificationsPage from './admin/pages/NotificationsPage';
+import EmailManagementPage from './admin/pages/EmailManagementPage';
 
 function App() {
   return (
@@ -27,9 +29,11 @@ function App() {
             <Route path="providers" element={<LLMProvidersPage />} />
         <Route path="settings" element={<SystemSettingsPage />} />
         <Route path="knowledge" element={<KnowledgeBasePage />} />
-        <Route path="reviews" element={<ReviewQueuePage />} />
-        <Route path="audit-logs" element={<AuditLogsPage />} />
-      </Route>
+            <Route path="reviews" element={<ReviewQueuePage />} />
+            <Route path="audit-logs" element={<AuditLogsPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="email" element={<EmailManagementPage />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

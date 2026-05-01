@@ -399,3 +399,206 @@ export async function getAuditLogStats(): Promise<AuditLogStats> {
   const res = await fetch(`${API_BASE}/admin/audit-logs/stats/overview`, { headers: authHeaders() });
   return handleResponse<AuditLogStats>(res);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// Notifications | 站内信
+// ═══════════════════════════════════════════════════════════════
+
+import type {
+  NotificationListResponse,
+  NotificationDetail,
+  NotificationUnreadCount,
+  NotificationCreate,
+  NotificationBroadcastCreate,
+} from '../types/admin';
+
+export async function listNotifications(params?: {
+  page?: number;
+  page_size?: number;
+  notification_type?: string;
+  priority?: string;
+  is_read?: boolean;
+  search?: string;
+}): Promise<NotificationListResponse> {
+  const url = new URL(`${API_BASE}/admin/notifications/notifications`, window.location.origin);
+  if (params?.page) url.searchParams.set('page', String(params.page));
+  if (params?.page_size) url.searchParams.set('page_size', String(params.page_size));
+  if (params?.notification_type) url.searchParams.set('notification_type', params.notification_type);
+  if (params?.priority) url.searchParams.set('priority', params.priority);
+  if (params?.is_read !== undefined) url.searchParams.set('is_read', String(params.is_read));
+  if (params?.search) url.searchParams.set('search', params.search);
+  const res = await fetch(url.toString(), { headers: authHeaders() });
+  return handleResponse<NotificationListResponse>(res);
+}
+
+export async function getUnreadCount(): Promise<NotificationUnreadCount> {
+  const res = await fetch(`${API_BASE}/admin/notifications/notifications/unread-count`, { headers: authHeaders() });
+  return handleResponse<NotificationUnreadCount>(res);
+}
+
+export async function getNotification(id: string): Promise<NotificationDetail> {
+  const res = await fetch(`${API_BASE}/admin/notifications/notifications/${id}`, { headers: authHeaders() });
+  return handleResponse<NotificationDetail>(res);
+}
+
+export async function createNotification(data: NotificationCreate): Promise<NotificationDetail> {
+  const res = await fetch(`${API_BASE}/admin/notifications/notifications`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<NotificationDetail>(res);
+}
+
+export async function broadcastNotification(data: NotificationBroadcastCreate): Promise<{ message: string; notification_id: string; recipient_count: number }> {
+  const res = await fetch(`${API_BASE}/admin/notifications/notifications/broadcast`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<{ message: string; notification_id: string; recipient_count: number }>(res);
+}
+
+export async function markNotificationRead(id: string, is_read = true): Promise<NotificationDetail> {
+  const res = await fetch(`${API_BASE}/admin/notifications/notifications/${id}/read`, {
+    method: 'PATCH',
+    headers: jsonHeaders(),
+    body: JSON.stringify({ is_read }),
+  });
+  return handleResponse<NotificationDetail>(res);
+}
+
+export async function deleteNotification(id: string): Promise<{ message: string; deleted_id: string }> {
+  const res = await fetch(`${API_BASE}/admin/notifications/notifications/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handleResponse<{ message: string; deleted_id: string }>(res);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Email Management | 邮件管理
+// ═══════════════════════════════════════════════════════════════
+
+import type {
+  EmailConfig,
+  EmailConfigCreate,
+  EmailConfigUpdate,
+  EmailConfigListResponse,
+  EmailTemplate,
+  EmailTemplateCreate,
+  EmailTemplateUpdate,
+  EmailTemplateListResponse,
+  EmailLogListResponse,
+  EmailProviderPresetsResponse,
+  EmailServiceStatus,
+} from '../types/admin';
+
+export async function listEmailConfigs(): Promise<EmailConfigListResponse> {
+  const res = await fetch(`${API_BASE}/admin/email/configs`, { headers: authHeaders() });
+  return handleResponse<EmailConfigListResponse>(res);
+}
+
+export async function getEmailConfig(id: string): Promise<EmailConfig> {
+  const res = await fetch(`${API_BASE}/admin/email/configs/${id}`, { headers: authHeaders() });
+  return handleResponse<EmailConfig>(res);
+}
+
+export async function createEmailConfig(data: EmailConfigCreate): Promise<EmailConfig> {
+  const res = await fetch(`${API_BASE}/admin/email/configs`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<EmailConfig>(res);
+}
+
+export async function updateEmailConfig(id: string, data: EmailConfigUpdate): Promise<EmailConfig> {
+  const res = await fetch(`${API_BASE}/admin/email/configs/${id}`, {
+    method: 'PUT',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<EmailConfig>(res);
+}
+
+export async function deleteEmailConfig(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/email/configs/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handleResponse<void>(res);
+}
+
+export async function testEmailConfig(id: string, test_email: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/admin/email/configs/${id}/test`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({ test_email }),
+  });
+  return handleResponse<{ success: boolean; message: string }>(res);
+}
+
+export async function setDefaultEmailConfig(id: string): Promise<EmailConfig> {
+  const res = await fetch(`${API_BASE}/admin/email/configs/${id}/set-default`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handleResponse<EmailConfig>(res);
+}
+
+export async function getEmailStatus(): Promise<EmailServiceStatus> {
+  const res = await fetch(`${API_BASE}/admin/email/status`, { headers: authHeaders() });
+  return handleResponse<EmailServiceStatus>(res);
+}
+
+export async function listEmailTemplates(): Promise<EmailTemplateListResponse> {
+  const res = await fetch(`${API_BASE}/admin/email/templates`, { headers: authHeaders() });
+  return handleResponse<EmailTemplateListResponse>(res);
+}
+
+export async function createEmailTemplate(data: EmailTemplateCreate): Promise<EmailTemplate> {
+  const res = await fetch(`${API_BASE}/admin/email/templates`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<EmailTemplate>(res);
+}
+
+export async function updateEmailTemplate(id: string, data: EmailTemplateUpdate): Promise<EmailTemplate> {
+  const res = await fetch(`${API_BASE}/admin/email/templates/${id}`, {
+    method: 'PUT',
+    headers: jsonHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<EmailTemplate>(res);
+}
+
+export async function deleteEmailTemplate(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/email/templates/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handleResponse<void>(res);
+}
+
+export async function listEmailLogs(params?: {
+  page?: number;
+  page_size?: number;
+  status?: string;
+  search?: string;
+}): Promise<EmailLogListResponse> {
+  const url = new URL(`${API_BASE}/admin/email/logs`, window.location.origin);
+  if (params?.page) url.searchParams.set('page', String(params.page));
+  if (params?.page_size) url.searchParams.set('page_size', String(params.page_size));
+  if (params?.status) url.searchParams.set('status', params.status);
+  if (params?.search) url.searchParams.set('search', params.search);
+  const res = await fetch(url.toString(), { headers: authHeaders() });
+  return handleResponse<EmailLogListResponse>(res);
+}
+
+export async function getEmailProviderPresets(): Promise<EmailProviderPresetsResponse> {
+  const res = await fetch(`${API_BASE}/admin/email/providers`, { headers: authHeaders() });
+  return handleResponse<EmailProviderPresetsResponse>(res);
+}

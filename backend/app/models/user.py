@@ -61,6 +61,18 @@ class User(Base):
     role_switches: Mapped[list["RoleSwitchLog"]] = relationship(
         "RoleSwitchLog", back_populates="user", lazy="selectin"
     )
+    sent_notifications: Mapped[list["Notification"]] = relationship(
+        "Notification",
+        foreign_keys="Notification.sender_id",
+        back_populates="sender",
+        lazy="selectin",
+    )
+    received_notifications: Mapped[list["Notification"]] = relationship(
+        "Notification",
+        foreign_keys="Notification.recipient_id",
+        back_populates="recipient",
+        lazy="selectin",
+    )
 
     __table_args__ = (
         # (email, role) unique constraint per architecture spec
