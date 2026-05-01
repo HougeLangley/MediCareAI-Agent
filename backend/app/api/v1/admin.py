@@ -844,6 +844,118 @@ async def list_documents(
     return list(result.scalars().all())
 
 
+# ─── Document Review Queue ─────────────────────────────────
+
+
+@router.get("/knowledge/reviews", response_model=list[ReviewQueueItem])
+async def list_review_queue(
+    status: Annotated[str | None, Query(description="Filter by review_status")] = None,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    db: AsyncSession = Depends(get_db),
+) -> list[Document]:
+    """List documents in the review queue.
+
+    By default shows agent_reviewed documents awaiting doctor review.
+    """
+    stmt = select(Document).where(
+        Document.doc_type == DocType.CASE_REPORT
+    ).order_by(Document.created_at.desc())
+
+    if status:
+        stmt = stmt.where(Document.review_status == status)
+    else:
+        # Default: show pending and agent_reviewed
+        stmt = stmt.where(Document.review_status.in_([ReviewStatus.PENDING, ReviewStatus.AGENT_REVIEWED]))
+
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+@router.get("/knowledge/reviews/{doc_id}/history", response_model=list[DocumentReviewItem])
+async def get_document_review_history(
+    doc_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> list[DocumentReview]:
+    """Get review history for a specific document."""
+    result = await db.execute(
+        select(DocumentReview).where(DocumentReview.document_id == doc_id)
+        .order_by(DocumentReview.reviewed_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+@router.post("/knowledge/reviews/{doc_id}")
+async def review_document(
+    doc_id: str,
+    data: DocumentReviewAction,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Submit a review decision for a document (admin or doctor).
+
+    Actions: approve, reject, request_revision
+    """
+    result = await db.execute(select(Document).where(Document.id == doc_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document '{doc_id}' not found",
+        )
+
+    previous_status = doc.review_status.value
+    # Update document review status
+    if data.action == "approve":
+        doc.review_status = ReviewStatus.APPROVED
+        doc.is_active = True
+    elif data.action == "reject":
+        doc.review_status = ReviewStatus.REJECTED
+        doc.is_active = False
+    elif data.action == "request_revision":
+        doc.review_status = ReviewStatus.REVISION_REQUESTED
+
+    # Create review log
+    review = DocumentReview(
+        document_id=doc.id,
+        reviewer_type="admin",  # TODO: detect doctor vs admin from current_user
+        action=data.action,
+        score=data.score,
+        comments=data.comments,
+    )
+    review.reviewer_id = current_user.id
+    db.add(review)
+    await db.commit()
+    await db.refresh(doc)
+
+    # Record audit log
+    await AuditService.record(
+        db,
+        action=AuditActionType.DOCUMENT_REVIEW,
+        user_id=str(current_user.id),
+        user_email=current_user.email,
+        user_role=current_user.role.value,
+        resource_type=AuditResourceType.DOCUMENT,
+        resource_id=doc_id,
+        details={
+            "title": doc.title,
+            "action": data.action,
+            "score": data.score,
+            "previous_status": previous_status,
+        },
+    )
+    await db.commit()
+
+    return {
+        "id": str(doc.id),
+        "review_status": doc.review_status.value,
+        "action": data.action,
+        "message": f"Document {data.action}d successfully",
+    }
+
+
+
 @router.get("/knowledge/{doc_id}", response_model=DocumentDetail)
 async def get_document(
     doc_id: str,
@@ -1011,116 +1123,6 @@ async def toggle_document_active(
 
     return {"id": str(doc.id), "is_active": doc.is_active}
 
-
-# ─── Document Review Queue ─────────────────────────────────
-
-
-@router.get("/knowledge/reviews", response_model=list[ReviewQueueItem])
-async def list_review_queue(
-    status: Annotated[str | None, Query(description="Filter by review_status")] = None,
-    skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
-    db: AsyncSession = Depends(get_db),
-) -> list[Document]:
-    """List documents in the review queue.
-
-    By default shows agent_reviewed documents awaiting doctor review.
-    """
-    stmt = select(Document).where(
-        Document.doc_type == DocType.CASE_REPORT
-    ).order_by(Document.created_at.desc())
-
-    if status:
-        stmt = stmt.where(Document.review_status == status)
-    else:
-        # Default: show pending and agent_reviewed
-        stmt = stmt.where(Document.review_status.in_([ReviewStatus.PENDING, ReviewStatus.AGENT_REVIEWED]))
-
-    stmt = stmt.offset(skip).limit(limit)
-    result = await db.execute(stmt)
-    return list(result.scalars().all())
-
-
-@router.get("/knowledge/reviews/{doc_id}/history", response_model=list[DocumentReviewItem])
-async def get_document_review_history(
-    doc_id: str,
-    db: AsyncSession = Depends(get_db),
-) -> list[DocumentReview]:
-    """Get review history for a specific document."""
-    result = await db.execute(
-        select(DocumentReview).where(DocumentReview.document_id == doc_id)
-        .order_by(DocumentReview.reviewed_at.desc())
-    )
-    return list(result.scalars().all())
-
-
-@router.post("/knowledge/reviews/{doc_id}")
-async def review_document(
-    doc_id: str,
-    data: DocumentReviewAction,
-    current_user: CurrentUser,
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """Submit a review decision for a document (admin or doctor).
-
-    Actions: approve, reject, request_revision
-    """
-    result = await db.execute(select(Document).where(Document.id == doc_id))
-    doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Document '{doc_id}' not found",
-        )
-
-    previous_status = doc.review_status.value
-    # Update document review status
-    if data.action == "approve":
-        doc.review_status = ReviewStatus.APPROVED
-        doc.is_active = True
-    elif data.action == "reject":
-        doc.review_status = ReviewStatus.REJECTED
-        doc.is_active = False
-    elif data.action == "request_revision":
-        doc.review_status = ReviewStatus.REVISION_REQUESTED
-
-    # Create review log
-    review = DocumentReview(
-        document_id=doc.id,
-        reviewer_type="admin",  # TODO: detect doctor vs admin from current_user
-        action=data.action,
-        score=data.score,
-        comments=data.comments,
-    )
-    review.reviewer_id = current_user.id
-    db.add(review)
-    await db.commit()
-    await db.refresh(doc)
-
-    # Record audit log
-    await AuditService.record(
-        db,
-        action=AuditActionType.DOCUMENT_REVIEW,
-        user_id=str(current_user.id),
-        user_email=current_user.email,
-        user_role=current_user.role.value,
-        resource_type=AuditResourceType.DOCUMENT,
-        resource_id=doc_id,
-        details={
-            "title": doc.title,
-            "action": data.action,
-            "score": data.score,
-            "previous_status": previous_status,
-        },
-    )
-    await db.commit()
-
-    return {
-        "id": str(doc.id),
-        "review_status": doc.review_status.value,
-        "action": data.action,
-        "message": f"Document {data.action}d successfully",
-    }
 
 
 # ─── Audit Logs ─────────────────────────────────────────────────────────────────────────
