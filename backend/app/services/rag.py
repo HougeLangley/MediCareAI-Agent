@@ -13,7 +13,9 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.rag import Document, DocumentChunk, DocType
+from app.services.embedding import EmbeddingService
 from app.services.llm import LLMService
+from app.services.reranker import RerankerService
 
 # Simple chunking strategy: split by paragraphs, max 1000 chars
 _CHUNK_SIZE = 1000
@@ -102,6 +104,24 @@ class RAGService:
                  "content": chunk_text, "id": str(chunk.id)},
             )
 
+        # Vectorize chunks asynchronously
+        try:
+            embed_svc = EmbeddingService(self.db)
+            chunk_texts = [c for c in chunks]
+            embeddings = await embed_svc.embed(chunk_texts)
+            for chunk, emb in zip(chunks, embeddings):
+                await self.db.execute(
+                    text(
+                        "UPDATE document_chunks SET embedding_json = :emb WHERE id = :id"
+                    ),
+                    {"emb": str(emb), "id": str(chunk.id)},
+                )
+            doc.vectorized_at = datetime.now(timezone.utc)
+            doc.embedding_model = embed_svc._model or "unknown"
+        except ValueError:
+            # Embedding provider not configured — skip silently, keep doc usable
+            pass
+
         doc.chunk_count = len(chunks)
         await self.db.commit()
         await self.db.refresh(doc)
@@ -113,26 +133,27 @@ class RAGService:
         doc_type: DocType | None = None,
         top_k: int = 5,
     ) -> list[dict[str, Any]]:
-        """Search document chunks using ILIKE for Chinese compatibility.
+        """Semantic search: hybrid keyword + vector similarity + rerank.
 
-        Returns ranked results with relevance scores.
+        Phase 1: keyword-based coarse retrieval (top 50)
+        Phase 2: vector cosine similarity re-rank
+        Phase 3: cross-encoder reranker refinement (if configured)
         """
-        # Extract key terms (2+ char substrings) from query for ILIKE matching
+        # Phase 1: coarse keyword retrieval (expand to 5x for re-ranking)
+        coarse_k = max(top_k * 10, 50)
         search_terms = [query[i:i+3] for i in range(len(query)-2)]
         if not search_terms:
             search_terms = [query]
-
-        # Use the longest term for primary matching
         primary_term = max(search_terms, key=len)
 
         stmt = select(
             DocumentChunk.id,
             DocumentChunk.content,
             DocumentChunk.chunk_index,
+            DocumentChunk.embedding_json,
             Document.id.label("doc_id"),
             Document.title,
             Document.doc_type,
-            func.length(DocumentChunk.content).label("rank"),
         ).join(Document).where(
             DocumentChunk.content.ilike(f"%{primary_term}%"),
             Document.is_active == True,
@@ -141,22 +162,68 @@ class RAGService:
         if doc_type:
             stmt = stmt.where(Document.doc_type == doc_type)
 
-        stmt = stmt.order_by(func.length(DocumentChunk.content).desc()).limit(top_k)
+        stmt = stmt.limit(coarse_k)
         result = await self.db.execute(stmt)
         rows = result.all()
 
-        return [
-            {
-                "chunk_id": str(row.id),
-                "content": row.content,
-                "chunk_index": row.chunk_index,
-                "document_id": str(row.doc_id),
-                "document_title": row.title,
-                "document_type": row.doc_type.value,
-                "rank": 1.0,
-            }
-            for row in rows
-        ]
+        if not rows:
+            return []
+
+        # Phase 2: vector similarity ranking
+        try:
+            embed_svc = EmbeddingService(self.db)
+            query_emb = (await embed_svc.embed([query]))[0]
+
+            scored = []
+            for row in rows:
+                if row.embedding_json:
+                    emb = row.embedding_json
+                    if isinstance(emb, str):
+                        import json
+                        emb = json.loads(emb)
+                    score = EmbeddingService.cosine_similarity(query_emb, emb)
+                else:
+                    score = 0.0  # fallback for non-vectorized chunks
+                scored.append((score, row))
+
+            scored.sort(key=lambda x: x[0], reverse=True)
+            vector_top = scored[:top_k * 2]
+        except ValueError:
+            # Embedding provider not configured — use keyword results as-is
+            vector_top = [(0.0, r) for r in rows[:top_k * 2]]
+
+        # Phase 3: reranker refinement (optional)
+        try:
+            reranker = RerankerService(self.db)
+            docs_for_rerank = [r.content for _, r in vector_top]
+            reranked = await reranker.rerank(query, docs_for_rerank, top_n=top_k)
+            final = []
+            for idx, score in reranked:
+                _, row = vector_top[idx]
+                final.append({
+                    "chunk_id": str(row.id),
+                    "content": row.content,
+                    "chunk_index": row.chunk_index,
+                    "document_id": str(row.doc_id),
+                    "document_title": row.title,
+                    "document_type": row.doc_type.value,
+                    "rank": round(score, 4),
+                })
+            return final
+        except ValueError:
+            # Reranker not configured — return vector-similarity results
+            return [
+                {
+                    "chunk_id": str(row.id),
+                    "content": row.content,
+                    "chunk_index": row.chunk_index,
+                    "document_id": str(row.doc_id),
+                    "document_title": row.title,
+                    "document_type": row.doc_type.value,
+                    "rank": round(score, 4),
+                }
+                for score, row in vector_top[:top_k]
+            ]
 
     async def generate_answer(
         self,

@@ -179,6 +179,12 @@ class DocumentChunk(Base):
     # Full-text search vector for chunk-level retrieval
     search_vector: Mapped[str | None] = mapped_column(TSVECTOR, nullable=True)
 
+    # Vector embedding (JSONB storage pre-pgvector; migrate to Vector(d) later)
+    embedding_json: Mapped[list[float] | None] = mapped_column(
+        postgresql.JSONB, nullable=True,
+        doc="Embedding vector as JSON array [float]",
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
