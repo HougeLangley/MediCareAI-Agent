@@ -12,14 +12,17 @@ from typing import Any
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models.rag import Document, DocumentChunk, DocType
 from app.services.embedding import EmbeddingService
 from app.services.llm import LLMService
 from app.services.reranker import RerankerService
 
-# Simple chunking strategy: split by paragraphs, max 1000 chars
-_CHUNK_SIZE = 1000
-_CHUNK_OVERLAP = 200
+settings = get_settings()
+
+# Simple chunking strategy: split by paragraphs, configurable via env
+_CHUNK_SIZE = settings.rag_chunk_size
+_CHUNK_OVERLAP = settings.rag_chunk_overlap
 
 
 class RAGService:
@@ -139,9 +142,10 @@ class RAGService:
         Phase 2: vector cosine similarity re-rank
         Phase 3: cross-encoder reranker refinement (if configured)
         """
-        # Phase 1: coarse keyword retrieval (expand to 5x for re-ranking)
-        coarse_k = max(top_k * 10, 50)
-        search_terms = [query[i:i+3] for i in range(len(query)-2)]
+        # Phase 1: coarse keyword retrieval (expand to configurable multiplier for re-ranking)
+        coarse_k = max(top_k * settings.rag_coarse_multiplier, settings.rag_coarse_min)
+        term_len = settings.rag_query_term_length
+        search_terms = [query[i:i+term_len] for i in range(len(query) - term_len + 1)]
         if not search_terms:
             search_terms = [query]
         primary_term = max(search_terms, key=len)
@@ -252,7 +256,11 @@ class RAGService:
             ]
 
             llm = LLMService(provider=provider, db=self.db)
-            resp = await llm.chat(messages=messages, temperature=0.3, max_tokens=2048)
+            resp = await llm.chat(
+                messages=messages,
+                temperature=settings.rag_llm_temperature,
+                max_tokens=settings.rag_llm_max_tokens,
+            )
             return resp.content
         except ValueError:
             # No API key configured — return context as-is with disclaimer

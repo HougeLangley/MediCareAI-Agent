@@ -62,6 +62,15 @@ class Settings(BaseSettings):
     # Encryption master key for API keys at rest
     api_key_master_key: SecretStr | None = None
 
+    # RAG (Retrieval-Augmented Generation) chunking & search tuning
+    rag_chunk_size: int = 1000
+    rag_chunk_overlap: int = 200
+    rag_coarse_multiplier: int = 10        # coarse_k = top_k * multiplier
+    rag_coarse_min: int = 50               # minimum coarse results
+    rag_query_term_length: int = 3         # char length per search term
+    rag_llm_temperature: float = 0.3
+    rag_llm_max_tokens: int = 2048
+
     @property
     def async_database_url(self) -> str:
         """Return async-compatible database URL."""
