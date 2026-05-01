@@ -25,7 +25,7 @@ from sqlalchemy import (
     Text,
     text,
 )
-from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -181,7 +181,7 @@ class DocumentChunk(Base):
 
     # Vector embedding (JSONB storage pre-pgvector; migrate to Vector(d) later)
     embedding_json: Mapped[list[float] | None] = mapped_column(
-        postgresql.JSONB, nullable=True,
+        JSONB, nullable=True,
         doc="Embedding vector as JSON array [float]",
     )
 
