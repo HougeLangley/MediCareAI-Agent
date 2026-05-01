@@ -85,8 +85,7 @@ class Document(Base):
 
     # Review workflow (for case_report and doctor_ugc)
     review_status: Mapped[ReviewStatus] = mapped_column(
-        Enum(ReviewStatus, values_callable=lambda x: [e.value for e in x]),
-        default=ReviewStatus.APPROVED,
+        String(50), default=ReviewStatus.APPROVED.value,
     )
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id"), nullable=True,
