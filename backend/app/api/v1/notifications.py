@@ -59,7 +59,7 @@ async def _get_user_name(db: AsyncSession, user_id: uuid.UUID | None) -> str:
 # Admin endpoints
 # ═══════════════════════════════════════════════════════════════
 
-@router.get("/notifications", response_model=NotificationListResponse)
+@router.get("/", response_model=NotificationListResponse)
 async def list_notifications(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
@@ -164,7 +164,7 @@ async def list_notifications(
     )
 
 
-@router.get("/notifications/unread-count", response_model=NotificationUnreadCount)
+@router.get("/unread-count", response_model=NotificationUnreadCount)
 async def get_unread_count(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -209,7 +209,7 @@ async def get_unread_count(
     )
 
 
-@router.get("/notifications/{notification_id}", response_model=NotificationDetail)
+@router.get("/{notification_id}", response_model=NotificationDetail)
 async def get_notification_detail(
     notification_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -243,7 +243,7 @@ async def get_notification_detail(
     )
 
 
-@router.post("/notifications", response_model=NotificationDetail, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=NotificationDetail, status_code=status.HTTP_201_CREATED)
 async def create_notification(
     data: NotificationCreate,
     db: AsyncSession = Depends(get_db),
@@ -316,7 +316,7 @@ async def create_notification(
     )
 
 
-@router.post("/notifications/broadcast", response_model=dict[str, Any], status_code=status.HTTP_201_CREATED)
+@router.post("/broadcast", response_model=dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def broadcast_notification(
     data: NotificationBroadcastCreate,
     db: AsyncSession = Depends(get_db),
@@ -371,7 +371,7 @@ async def broadcast_notification(
     }
 
 
-@router.patch("/notifications/{notification_id}/read", response_model=NotificationDetail)
+@router.patch("/{notification_id}/read", response_model=NotificationDetail)
 async def mark_notification_read(
     notification_id: uuid.UUID,
     data: NotificationUpdate | None = None,
@@ -415,7 +415,7 @@ async def mark_notification_read(
     )
 
 
-@router.delete("/notifications/{notification_id}", response_model=NotificationDeleteResponse)
+@router.delete("/{notification_id}", response_model=NotificationDeleteResponse)
 async def delete_notification(
     notification_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),

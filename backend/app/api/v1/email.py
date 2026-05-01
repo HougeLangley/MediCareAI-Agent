@@ -75,7 +75,7 @@ async def _clear_default_config(
 # Email Configuration
 # ═════════════════════════════════════════════════════════════════════════════
 
-@router.get("/email/configs", response_model=EmailConfigListResponse)
+@router.get("/configs", response_model=EmailConfigListResponse)
 async def list_email_configs(
     db: AsyncSession = Depends(get_db),
 ) -> EmailConfigListResponse:
@@ -89,7 +89,7 @@ async def list_email_configs(
     )
 
 
-@router.get("/email/configs/{config_id}", response_model=EmailConfigResponse)
+@router.get("/configs/{config_id}", response_model=EmailConfigResponse)
 async def get_email_config(
     config_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -106,7 +106,7 @@ async def get_email_config(
     return EmailConfigResponse.model_validate(cfg)
 
 
-@router.post("/email/configs", response_model=EmailConfigResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/configs", response_model=EmailConfigResponse, status_code=status.HTTP_201_CREATED)
 async def create_email_config(
     data: EmailConfigCreate,
     db: AsyncSession = Depends(get_db),
@@ -145,7 +145,7 @@ async def create_email_config(
     return EmailConfigResponse.model_validate(new_cfg)
 
 
-@router.put("/email/configs/{config_id}", response_model=EmailConfigResponse)
+@router.put("/configs/{config_id}", response_model=EmailConfigResponse)
 async def update_email_config(
     config_id: uuid.UUID,
     data: EmailConfigUpdate,
@@ -192,7 +192,7 @@ async def update_email_config(
     return EmailConfigResponse.model_validate(cfg)
 
 
-@router.delete("/email/configs/{config_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/configs/{config_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_email_config(
     config_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -220,7 +220,7 @@ async def delete_email_config(
     )
 
 
-@router.post("/email/configs/{config_id}/test", response_model=EmailConfigTestResponse)
+@router.post("/configs/{config_id}/test", response_model=EmailConfigTestResponse)
 async def test_email_config(
     config_id: uuid.UUID,
     data: EmailConfigTestRequest,
@@ -244,7 +244,7 @@ async def test_email_config(
     return EmailConfigTestResponse(success=success, message=message)
 
 
-@router.post("/email/configs/{config_id}/set-default", response_model=EmailConfigResponse)
+@router.post("/configs/{config_id}/set-default", response_model=EmailConfigResponse)
 async def set_default_email_config(
     config_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -270,7 +270,7 @@ async def set_default_email_config(
     return EmailConfigResponse.model_validate(cfg)
 
 
-@router.get("/email/status", response_model=EmailServiceStatus)
+@router.get("/status", response_model=EmailServiceStatus)
 async def get_email_status(
     db: AsyncSession = Depends(get_db),
 ) -> EmailServiceStatus:
@@ -295,7 +295,7 @@ async def get_email_status(
 # Email Templates
 # ═════════════════════════════════════════════════════════════════════════════
 
-@router.get("/email/templates", response_model=EmailTemplateListResponse)
+@router.get("/templates", response_model=EmailTemplateListResponse)
 async def list_email_templates(
     db: AsyncSession = Depends(get_db),
 ) -> EmailTemplateListResponse:
@@ -309,7 +309,7 @@ async def list_email_templates(
     )
 
 
-@router.get("/email/templates/{template_id}", response_model=EmailTemplateResponse)
+@router.get("/templates/{template_id}", response_model=EmailTemplateResponse)
 async def get_email_template(
     template_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -326,7 +326,7 @@ async def get_email_template(
     return EmailTemplateResponse.model_validate(tpl)
 
 
-@router.post("/email/templates", response_model=EmailTemplateResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/templates", response_model=EmailTemplateResponse, status_code=status.HTTP_201_CREATED)
 async def create_email_template(
     data: EmailTemplateCreate,
     db: AsyncSession = Depends(get_db),
@@ -359,7 +359,7 @@ async def create_email_template(
     return EmailTemplateResponse.model_validate(tpl)
 
 
-@router.put("/email/templates/{template_id}", response_model=EmailTemplateResponse)
+@router.put("/templates/{template_id}", response_model=EmailTemplateResponse)
 async def update_email_template(
     template_id: uuid.UUID,
     data: EmailTemplateUpdate,
@@ -386,7 +386,7 @@ async def update_email_template(
     return EmailTemplateResponse.model_validate(tpl)
 
 
-@router.delete("/email/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_email_template(
     template_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -408,7 +408,7 @@ async def delete_email_template(
 # Email Logs
 # ═════════════════════════════════════════════════════════════════════════════
 
-@router.get("/email/logs", response_model=EmailLogListResponse)
+@router.get("/logs", response_model=EmailLogListResponse)
 async def list_email_logs(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
@@ -455,7 +455,7 @@ async def list_email_logs(
 # Send Email (Admin)
 # ═════════════════════════════════════════════════════════════════════════════
 
-@router.post("/email/send", response_model=EmailSendResponse)
+@router.post("/send", response_model=EmailSendResponse)
 async def send_email(
     data: EmailSendRequest,
     db: AsyncSession = Depends(get_db),
@@ -491,7 +491,7 @@ async def send_email(
 # Provider Presets
 # ═════════════════════════════════════════════════════════════════════════════
 
-@router.get("/email/providers", response_model=EmailProviderPresetsResponse)
+@router.get("/providers", response_model=EmailProviderPresetsResponse)
 async def get_email_provider_presets() -> EmailProviderPresetsResponse:
     """Get built-in email provider presets."""
     providers = []
@@ -526,7 +526,7 @@ async def get_email_provider_presets() -> EmailProviderPresetsResponse:
     return EmailProviderPresetsResponse(providers=providers, categories=categories)
 
 
-@router.get("/email/providers/{provider_id}", response_model=EmailProviderPreset)
+@router.get("/providers/{provider_id}", response_model=EmailProviderPreset)
 async def get_email_provider_preset(provider_id: str) -> EmailProviderPreset:
     """Get single provider preset."""
     pdata = EMAIL_PROVIDER_PRESETS.get(provider_id)
