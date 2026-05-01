@@ -23,6 +23,7 @@ from app.core.config import get_settings
 from app.core.security import (
     create_access_token,
     create_guest_token,
+    decode_token,
     get_password_hash,
     verify_password,
 )
@@ -117,21 +118,38 @@ async def login(
 
     # OAuth2 form uses username field for email
     result = await db.execute(select(User).where(User.email == form_data.username))
-    user = result.scalar_one_or_none()
+    users = result.scalars().all()
 
-    if not user or not user.hashed_password:
+    if not users:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not verify_password(form_data.password, user.hashed_password):
+    # Find user(s) with matching password
+    matched_users = [
+        u for u in users
+        if u.hashed_password and verify_password(form_data.password, u.hashed_password)
+    ]
+
+    if not matched_users:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # If multiple identities share this email, deterministically pick one:
+    # ADMIN > DOCTOR > PATIENT, then most-recently-updated as tie-breaker.
+    role_priority = {UserRole.ADMIN: 0, UserRole.DOCTOR: 1, UserRole.PATIENT: 2}
+    user = min(
+        matched_users,
+        key=lambda u: (
+            role_priority.get(u.role, 99),
+            -(u.updated_at.timestamp() if u.updated_at else 0),
+        ),
+    )
 
     # Update last login
     user.last_login_at = datetime.now(timezone.utc)
