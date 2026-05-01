@@ -113,7 +113,7 @@ const PROVIDER_GUIDES: Record<string, ProviderGuide> = {
   },
   'custom-openai': {
     name: '自定义（OpenAI 兼容）',
-    baseUrl: 'https://api.example.com/v1',
+    baseUrl: '',
     models: [
       { id: 'gpt-4o', label: 'gpt-4o（OpenAI 多模态旗舰）', type: 'diagnosis' },
       { id: 'gpt-4o-mini', label: 'gpt-4o-mini（OpenAI 轻量版）', type: 'diagnosis' },

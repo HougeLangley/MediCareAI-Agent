@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = False
     environment: Literal["development", "staging", "production"] = "development"
-    secret_key: SecretStr = SecretStr("change-me-in-production")
+    secret_key: SecretStr  # No default — must be provided via env
 
     # Database
     database_url: PostgresDsn = PostgresDsn("postgresql+asyncpg://postgres:postgres@localhost:5432/medicareai")
@@ -48,19 +48,6 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://localhost:6379/2"
     celery_task_always_eager: bool = False
 
-    # Vector / RAG
-    vector_dimension: int = 1536
-    reranker_provider: str = "cohere"
-    reranker_api_key: SecretStr | None = None
-    reranker_top_k: int = 5
-
-    # Email
-    smtp_host: str | None = None
-    smtp_port: int = 587
-    smtp_user: str | None = None
-    smtp_password: SecretStr | None = None
-    smtp_from: str = "noreply@medicareai.dev"
-
     # Monitoring
     sentry_dsn: str | None = None
     prometheus_port: int = 9090
@@ -70,7 +57,7 @@ class Settings(BaseSettings):
 
     # Default admin credentials (auto-created if no admin exists)
     default_admin_email: str = "admin@medicareai.dev"
-    default_admin_password: SecretStr = SecretStr("admin123")
+    default_admin_password: SecretStr | None = None  # No default — must be provided via env
 
     # Encryption master key for API keys at rest
     api_key_master_key: SecretStr | None = None

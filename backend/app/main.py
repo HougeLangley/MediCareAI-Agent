@@ -43,12 +43,15 @@ async def _ensure_default_admin() -> None:
             return  # Admin already exists
 
         # Default admin credentials — MUST be changed on first login
-        admin_email = settings.default_admin_email or "admin@medicareai.dev"
-        admin_password = settings.default_admin_password or "admin123"
+        admin_email = settings.default_admin_email
+        admin_password = settings.default_admin_password
+
+        if not admin_password:
+            return  # No default password configured — skip auto-creation
 
         admin = User(
             email=admin_email,
-            hashed_password=get_password_hash(admin_password),
+            hashed_password=get_password_hash(admin_password.get_secret_value()),
             full_name="System Administrator",
             role=UserRole.ADMIN,
             status=UserStatus.ACTIVE,
