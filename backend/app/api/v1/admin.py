@@ -804,7 +804,7 @@ async def verify_doctor(
 
 # ─── Knowledge Base Management ─────────────────────────────────
 
-from app.models.rag import Document, DocumentReview, ReviewStatus
+from app.models.rag import Document, DocumentReview, DocType, ReviewStatus
 from app.schemas.config import (
     DocumentAdminCreate,
     DocumentAdminUpdate,

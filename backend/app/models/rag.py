@@ -64,7 +64,8 @@ class Document(Base):
     )
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     doc_type: Mapped[DocType] = mapped_column(
-        Enum(DocType), default=DocType.PLATFORM_GUIDELINE
+        Enum(DocType, values_callable=lambda x: [e.value for e in x]),
+        default=DocType.PLATFORM_GUIDELINE,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -84,7 +85,8 @@ class Document(Base):
 
     # Review workflow (for case_report and doctor_ugc)
     review_status: Mapped[ReviewStatus] = mapped_column(
-        Enum(ReviewStatus), default=ReviewStatus.APPROVED
+        Enum(ReviewStatus, values_callable=lambda x: [e.value for e in x]),
+        default=ReviewStatus.APPROVED,
     )
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id"), nullable=True,
