@@ -11,7 +11,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import SearchIcon from '@mui/icons-material/Search';
 import { listDoctors, verifyDoctor, updateUser } from '../../api/admin';
 import type { UserItem, UserAdminUpdate } from '../../types/admin';
-import { flexRowBetweenMb2 } from '../../styles/sxUtils';
+import { PageHeader } from '../../components/layout/PageHeader';
 
 
 const STATUS_TABS = [
@@ -196,14 +196,7 @@ export default function DoctorVerificationPage() {
 
   return (
     <Box>
-      <Box sx={flexRowBetweenMb2}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          医生认证
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          共 {doctors.length} 位医生
-        </Typography>
-      </Box>
+      <PageHeader title="医生认证" subtitle={`共 ${doctors.length} 位医生`} />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>

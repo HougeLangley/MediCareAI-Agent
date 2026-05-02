@@ -9,7 +9,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SearchIcon from '@mui/icons-material/Search';
 import { listUsers, updateUser } from '../../api/admin';
 import type { UserItem, UserAdminUpdate } from '../../types/admin';
-import { flexRowBetweenMb2 } from '../../styles/sxUtils';
+import { PageHeader } from '../../components/layout/PageHeader';
 
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
@@ -144,14 +144,7 @@ export default function UsersPage() {
 
   return (
     <Box>
-      <Box sx={flexRowBetweenMb2}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          用户管理
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          共 {users.length} 位用户
-        </Typography>
-      </Box>
+      <PageHeader title="用户管理" subtitle={`共 ${users.length} 位用户`} />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>

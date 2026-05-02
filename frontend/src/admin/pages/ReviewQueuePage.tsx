@@ -11,7 +11,9 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import HistoryIcon from '@mui/icons-material/History';
 import type { ReviewQueueItem, DocumentReviewLog, ReviewAction } from '../../types/admin';
 import { listReviewQueue, reviewDocument, getDocumentReviewHistory } from '../../api/admin';
-import { flexRowBetween, flexRowBetweenMb2, flexRowGap1 } from '../../styles/sxUtils';
+import { flexRowBetween, flexRowGap1 } from '../../styles/sxUtils';
+import { PageHeader } from "../../components/layout/PageHeader";
+
 
 
 const REVIEW_STATUS_LABELS: Record<string, { label: string; color: 'success' | 'warning' | 'error' | 'info' | 'default' }> = {
@@ -95,12 +97,9 @@ export default function ReviewQueuePage() {
 
   return (
     <Box>
-      <Box sx={flexRowBetweenMb2}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>病例审核队列</Typography>
-        <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchQueue}>
+      <PageHeader title="病例审核队列" actions={<Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchQueue}>
           刷新
-        </Button>
-      </Box>
+        </Button>} />
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 

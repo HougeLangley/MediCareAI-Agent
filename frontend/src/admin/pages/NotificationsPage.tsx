@@ -12,7 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import type { NotificationItem, NotificationDetail, NotificationType, NotificationPriority, NotificationUnreadCount } from '../../types/admin';
-import { flexRowBetweenMb2 } from '../../styles/sxUtils';
+import { PageHeader } from '../../components/layout/PageHeader';
 import {
   listNotifications, getUnreadCount, getNotification, createNotification,
   broadcastNotification, markNotificationRead, deleteNotification,
@@ -157,28 +157,30 @@ export default function NotificationsPage() {
 
   return (
     <Box>
-      <Box sx={flexRowBetweenMb2}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          <NotificationsIcon sx={{ mr: 1, verticalAlign: 'middle', color: '#1565C0' }} />
-          站内信管理
-          {unread && unread.total > 0 && (
-            <Badge badgeContent={unread.total} color="error" sx={{ ml: 2 }}>
+      <PageHeader
+        title="站内信管理"
+        icon={<NotificationsIcon sx={{ verticalAlign: 'middle', color: '#1565C0' }} />}
+        titleSuffix={
+          unread && unread.total > 0 ? (
+            <Badge badgeContent={unread.total} color="error">
               <NotificationsIcon color="action" />
             </Badge>
-          )}
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button variant="outlined" onClick={fetchData} disabled={loading}>
-            刷新
-          </Button>
-          <Button variant="contained" startIcon={<SendIcon />} onClick={() => { setSendMode('direct'); setSendOpen(true); }}>
-            发消息
-          </Button>
-          <Button variant="contained" color="secondary" startIcon={<CampaignIcon />} onClick={() => { setSendMode('broadcast'); setSendOpen(true); }}>
-            广播
-          </Button>
-        </Box>
-      </Box>
+          ) : null
+        }
+        actions={(
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button variant="outlined" onClick={fetchData} disabled={loading}>
+              刷新
+            </Button>
+            <Button variant="contained" startIcon={<SendIcon />} onClick={() => { setSendMode('direct'); setSendOpen(true); }}>
+              发消息
+            </Button>
+            <Button variant="contained" color="secondary" startIcon={<CampaignIcon />} onClick={() => { setSendMode('broadcast'); setSendOpen(true); }}>
+              广播
+            </Button>
+          </Box>
+        )}
+      />
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 

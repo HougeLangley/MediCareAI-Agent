@@ -21,7 +21,8 @@ import type {
   EmailConfig, EmailTemplate, EmailLog, EmailProviderPreset,
   SmtpSecurity,
 } from '../../types/admin';
-import { flexRowBetweenMb2, flexRowGap1Mb1 } from '../../styles/sxUtils';
+import { flexRowGap1Mb1 } from '../../styles/sxUtils';
+import { PageHeader } from '../../components/layout/PageHeader';
 import {
   listEmailConfigs, createEmailConfig, updateEmailConfig, deleteEmailConfig,
   testEmailConfig, setDefaultEmailConfig,
@@ -215,12 +216,10 @@ export default function EmailManagementPage() {
 
   return (
     <Box>
-      <Box sx={flexRowBetweenMb2}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          <EmailIcon sx={{ mr: 1, verticalAlign: 'middle', color: '#1565C0' }} />
-          邮件管理
-        </Typography>
-      </Box>
+      <PageHeader
+        title="邮件管理"
+        icon={<EmailIcon sx={{ verticalAlign: 'middle', color: '#1565C0' }} />}
+      />
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}

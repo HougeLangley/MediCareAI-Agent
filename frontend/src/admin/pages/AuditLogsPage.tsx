@@ -12,7 +12,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import type { AuditLogItem, AuditLogStats, AuditActionType, AuditResourceType } from '../../types/admin';
 import { listAuditLogs, getAuditLogStats } from '../../api/admin';
-import { flexRowBetweenMb2 } from '../../styles/sxUtils';
+import { PageHeader } from "../../components/layout/PageHeader";
+
 
 
 const ACTION_LABELS: Record<string, string> = {
@@ -145,12 +146,9 @@ export default function AuditLogsPage() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={flexRowBetweenMb2}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>审计日志</Typography>
-        <Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => { fetchLogs(); fetchStats(); }}>
+      <PageHeader title="审计日志" actions={<Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => { fetchLogs(); fetchStats(); }}>
           刷新
-        </Button>
-      </Box>
+        </Button>} />
 
       {/* Stats Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>

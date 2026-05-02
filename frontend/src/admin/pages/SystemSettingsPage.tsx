@@ -8,7 +8,8 @@ import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
 import { listSettings, createSetting, batchUpdateSettings } from '../../api/admin';
 import type { SystemSetting, SystemSettingCreate } from '../../types/admin';
-import { flexRowBetweenMb2, flexRowGap05 } from '../../styles/sxUtils';
+import { flexRowGap05 } from '../../styles/sxUtils';
+import { PageHeader } from '../../components/layout/PageHeader';
 
 
 const CATEGORIES: Record<string, { label: string; color: string }> = {
@@ -257,24 +258,24 @@ export default function SystemSettingsPage() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={flexRowBetweenMb2}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          系统设置
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            variant="outlined"
-            startIcon={<SaveIcon />}
-            onClick={handleSaveAll}
-            disabled={saving || loading}
-          >
-            {saving ? <CircularProgress size={16} /> : '保存全部'}
-          </Button>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenDialog(true)}>
-            自定义设置
-          </Button>
-        </Box>
-      </Box>
+      <PageHeader
+        title="系统设置"
+        actions={(
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              startIcon={<SaveIcon />}
+              onClick={handleSaveAll}
+              disabled={saving || loading}
+            >
+              {saving ? <CircularProgress size={16} /> : '保存全部'}
+            </Button>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenDialog(true)}>
+              自定义设置
+            </Button>
+          </Box>
+        )}
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>

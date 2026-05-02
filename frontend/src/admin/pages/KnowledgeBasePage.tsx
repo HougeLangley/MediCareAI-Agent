@@ -11,7 +11,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import type { DocumentItem, DocumentCreate, DocumentUpdate, DocumentType } from '../../types/admin';
-import { flexRowBetweenMb2 } from '../../styles/sxUtils';
+import { PageHeader } from "../../components/layout/PageHeader";
 import {
   listDocuments, createDocument, updateDocument, deleteDocument, toggleDocumentActive,
 } from '../../api/admin';
@@ -178,12 +178,9 @@ export default function KnowledgeBasePage() {
 
   return (
     <Box>
-      <Box sx={flexRowBetweenMb2}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>知识库管理</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+      <PageHeader title="知识库管理" actions={<Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
           新建文档
-        </Button>
-      </Box>
+        </Button>} />
 
       <Paper sx={{ mb: 2 }}>
         <Tabs value={tabs.tab} onChange={handleTabChange}>
