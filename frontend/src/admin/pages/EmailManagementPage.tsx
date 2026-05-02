@@ -21,9 +21,8 @@ import type {
   EmailConfig, EmailTemplate, EmailLog, EmailProviderPreset,
   SmtpSecurity,
 } from '../../types/admin';
-import {
 import { flexRowBetweenMb2, flexRowGap1Mb1 } from '@/styles/sxUtils';
-
+import {
   listEmailConfigs, createEmailConfig, updateEmailConfig, deleteEmailConfig,
   testEmailConfig, setDefaultEmailConfig,
   listEmailTemplates, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate,
