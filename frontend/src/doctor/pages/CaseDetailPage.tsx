@@ -295,9 +295,9 @@ export default function CaseDetailPage() {
           </Alert>
         )}
 
-        <Grid container spacing={3}>
+ <Grid container spacing={3}>
           {/* 左侧主区 */}
-          <Grid size={{ xs: 12, md: 8 }}>
+ <Grid size={{ xs: 12, md: 8 }}>
             {/* Agent 摘要卡片 */}
             <Card sx={{ mb: 3 }}>
               <CardContent>
@@ -311,8 +311,8 @@ export default function CaseDetailPage() {
                 {loading ? (
                   <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 2 }} />
                 ) : caseData?.structured_report ? (
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
+ <Grid container spacing={2}>
+ <Grid>
                       <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#E3F2FD' }}>
                         <Typography variant="caption" sx={{ color: '#1976D2', fontWeight: 600 }}>
                           首选诊断
@@ -330,7 +330,7 @@ export default function CaseDetailPage() {
                       </Paper>
                     </Grid>
 
-                    <Grid item xs={12} sm={6}>
+ <Grid>
                       <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#FFF3E0' }}>
                         <Typography variant="caption" sx={{ color: '#E65100', fontWeight: 600 }}>
                           鉴别诊断（可能性）
@@ -349,7 +349,7 @@ export default function CaseDetailPage() {
                       </Paper>
                     </Grid>
 
-                    <Grid item xs={12}>
+ <Grid>
                       <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                         <Typography variant="caption" sx={{ color: '#607D8B', fontWeight: 600 }}>
                           关键发现
@@ -364,7 +364,7 @@ export default function CaseDetailPage() {
                       </Paper>
                     </Grid>
 
-                    <Grid item xs={12}>
+ <Grid>
                       <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#E8F5E9' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
                           <ScienceIcon sx={{ fontSize: 16, color: '#43A047' }} />
@@ -505,7 +505,7 @@ export default function CaseDetailPage() {
           </Grid>
 
           {/* 右侧边栏 */}
-          <Grid item xs={12} md={4}>
+ <Grid>
             {/* 患者基本信息 */}
             <Card sx={{ mb: 3 }}>
               <CardContent>

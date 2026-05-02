@@ -191,7 +191,7 @@ export default function FollowUpPage() {
             value={tab}
             onChange={(_, v) => setTab(v)}
             textColor="inherit"
-            indicatorColor="transparent"
+            indicatorColor="primary"
             sx={{
               '& .MuiTabs-flexContainer': { gap: 1 },
               '& .MuiTab-root': {

@@ -284,7 +284,7 @@ export default function DoctorCases() {
                           <Button
                             size="small"
                             variant="text"
-                            startIcon={<ChatBubbleOutlineIcon fontSize="small" />}
+                            startIcon={<MessageOutlinedIcon fontSize="small" />}
                             onClick={() => navigate('/doctor/messages')}
                             sx={{
                               textTransform: 'none',
