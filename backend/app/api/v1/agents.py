@@ -9,18 +9,23 @@ New design per PROPOSAL.md:
 - /sessions   → Agent session management
 """
 
+from __future__ import annotations
+
+import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, CurrentUserContext, require_role
-from app.db.session import get_db
+from app.db.session import async_session_maker, get_db
 from app.models.agent import AgentSession, AgentSessionStatus
 from app.models.user import User, UserRole
 from app.services.agents import AgentOrchestrator, DiagnosisAgent, MonitoringAgent, PlanningAgent
+from app.services.llm import LLMService
 from app.services.rag import RAGService
 
 router = APIRouter()
@@ -255,3 +260,63 @@ async def get_session(
         "updated_at": session.updated_at.isoformat() if session.updated_at else None,
         "completed_at": session.completed_at.isoformat() if session.completed_at else None,
     }
+
+
+# ---------------------------------------------------------------------------
+# Streaming SSE endpoints (backend-ready, frontend to integrate later)
+# ---------------------------------------------------------------------------
+
+@router.post("/route/stream")
+async def route_stream(
+    req: RouteRequest,
+    ctx: CurrentUserContext,
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """MasterAgent intent classification + streaming response via SSE.
+
+    Backend-ready SSE endpoint. Frontend can connect and receive:
+    1. intent classification result (JSON)
+    2. streaming LLM response chunks
+    3. [DONE] marker
+    """
+    async def event_generator():
+        # Step 1: Intent classification (non-streaming)
+        master = AgentOrchestrator(provider=req.provider)
+        intent_result = await master.master.classify_intent(req.message)
+        intent = intent_result.get("intent", "diagnosis")
+
+        yield f"event: intent\ndata: {json.dumps(intent_result)}\n\n"
+
+        # Step 2: Streaming response via LLM
+        patient_id = req.patient_id or (str(ctx.user.id) if ctx.user else None)
+
+        async with async_session_maker() as db_stream:
+            llm = LLMService(provider=req.provider, platform=ctx.platform, db=db_stream)
+
+            system_prompt = (
+                "You are MediCareAI-Agent, a medical AI assistant. "
+                "Provide helpful, accurate medical information. "
+                "Always include a disclaimer that this is not a substitute for professional medical advice."
+            )
+
+            messages = [{"role": "user", "content": req.message}]
+            if req.patient_history:
+                messages.insert(0, {"role": "system", "content": f"Patient history: {req.patient_history}"})
+
+            try:
+                async for chunk in llm.chat_stream(
+                    messages=messages,
+                    system_prompt=system_prompt,
+                    temperature=0.3,
+                    max_tokens=2048,
+                ):
+                    yield f"data: {chunk}\n\n"
+            except Exception as e:
+                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+    )

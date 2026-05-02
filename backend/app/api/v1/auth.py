@@ -7,6 +7,7 @@ Supports:
 - Platform-aware token issuance (X-Platform header)
 """
 
+import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -27,6 +28,7 @@ from app.core.security import (
     get_password_hash,
     verify_password,
 )
+from app.db.redis_client import get_redis
 from app.db.session import get_db
 from app.models.user import GuestSession, RoleSwitchLog, User, UserRole, UserStatus
 from app.schemas.auth import (
@@ -362,3 +364,45 @@ async def get_guest_status(
 async def get_me(current_user: CurrentUser) -> UserResponse:
     """Return current authenticated user profile."""
     return UserResponse.model_validate(current_user)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    request: Request,
+    current_user: CurrentUser,
+) -> None:
+    """Invalidate the current access token (logout).
+
+    Supports Bearer header and Cookie(auth_token).
+    Adds the token to a Redis blacklist with TTL equal to token remaining lifetime.
+    """
+    # Extract token from Authorization header or Cookie
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "") if auth_header.startswith("Bearer ") else None
+    token = token or request.cookies.get("auth_token")
+
+    if not token:
+        return  # Nothing to revoke
+
+    try:
+        payload = decode_token(token)
+        exp = payload.get("exp")
+        if exp:
+            ttl = int(exp - datetime.now(timezone.utc).timestamp())
+            if ttl > 0:
+                token_hash = hashlib.sha256(token.encode()).hexdigest()
+                redis_client = get_redis()
+                await redis_client.setex(
+                    f"token_blacklist:{token_hash}",
+                    ttl,
+                    "1",
+                )
+    except jwt.ExpiredSignatureError:
+        # Token already expired — nothing to blacklist
+        pass
+    except jwt.InvalidTokenError:
+        # Invalid token — ignore
+        pass
+    except Exception:
+        # Redis unavailable — ignore (token will expire naturally)
+        pass

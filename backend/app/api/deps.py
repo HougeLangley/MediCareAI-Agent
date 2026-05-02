@@ -1,5 +1,6 @@
 """FastAPI dependencies: DB session, current user, permissions, platform."""
 
+import hashlib
 import uuid
 from dataclasses import dataclass
 from typing import Annotated
@@ -11,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_token
+from app.db.redis_client import get_redis
 from app.db.session import get_db
 from app.models.user import GuestSession, User, UserRole
 
@@ -41,6 +43,17 @@ async def _resolve_token(
     """
     if not token:
         return None, "unknown", False, None
+
+    # Check token blacklist (logout revocation)
+    try:
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        redis_client = get_redis()
+        is_blacklisted = await redis_client.get(f"token_blacklist:{token_hash}")
+        if is_blacklisted:
+            return None, "unknown", False, None
+    except Exception:
+        # Redis unavailable — fail open (allow token) but log warning
+        pass
 
     try:
         payload = decode_token(token)
@@ -81,13 +94,18 @@ async def _resolve_token(
 
 
 async def get_current_user_or_guest(
-    token: Annotated[str | None, Depends(oauth2_scheme)],
+    request: Request,
+    token: Annotated[str | None, Depends(oauth2_scheme)] = None,
     x_guest_token: Annotated[str | None, Header(alias="X-Guest-Token")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> UserContext:
-    """Resolve current user or guest from Bearer token or X-Guest-Token header."""
-    # Try Bearer token first
-    effective_token = token or x_guest_token
+    """Resolve current user or guest from Bearer token, X-Guest-Token header, or Cookie.
+
+    Priority: Bearer Header > X-Guest-Token Header > Cookie(auth_token)
+    """
+    # Try Bearer token first, then X-Guest-Token, then Cookie fallback
+    cookie_token = request.cookies.get("auth_token")
+    effective_token = token or x_guest_token or cookie_token
     user, platform, is_guest, guest_id = await _resolve_token(effective_token, db)
 
     if user is None and not is_guest:
@@ -101,17 +119,22 @@ async def get_current_user_or_guest(
 
 
 async def get_current_user(
-    token: Annotated[str | None, Depends(oauth2_scheme)],
+    request: Request,
+    token: Annotated[str | None, Depends(oauth2_scheme)] = None,
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Decode JWT and return the current authenticated user (not guest)."""
-    if not token:
+    """Decode JWT and return the current authenticated user (not guest).
+
+    Supports Bearer header and Cookie(auth_token) fallback.
+    """
+    effective_token = token or request.cookies.get("auth_token")
+    if not effective_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user, _, _, _ = await _resolve_token(token, db)
+    user, _, _, _ = await _resolve_token(effective_token, db)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

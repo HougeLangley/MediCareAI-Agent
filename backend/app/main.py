@@ -18,7 +18,8 @@ from app.api.v1 import router as v1_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.security import get_password_hash
-from app.db.session import AsyncSessionLocal
+from app.db.redis_client import get_redis
+from app.db.session import AsyncSessionLocal, get_db
 from app.models.user import User, UserRole, UserStatus
 
 settings = get_settings()
@@ -99,5 +100,27 @@ async def health_check() -> dict:
 @app.get("/ready", tags=["System"])
 async def readiness_check() -> dict:
     """Readiness probe — checks DB & Redis connectivity."""
-    # TODO: add DB & Redis connectivity checks
-    return {"status": "ready"}
+    checks: dict[str, str] = {}
+
+    # Check DB connectivity
+    try:
+        async with AsyncSessionLocal() as db:
+            from sqlalchemy import text
+            await db.execute(text("SELECT 1"))
+            checks["database"] = "ok"
+    except Exception as e:
+        checks["database"] = f"unavailable: {type(e).__name__}"
+
+    # Check Redis connectivity
+    try:
+        redis_client = get_redis()
+        await redis_client.ping()
+        checks["redis"] = "ok"
+    except Exception as e:
+        checks["redis"] = f"unavailable: {type(e).__name__}"
+
+    all_ok = all(v == "ok" for v in checks.values())
+    return {
+        "status": "ready" if all_ok else "not_ready",
+        "checks": checks,
+    }

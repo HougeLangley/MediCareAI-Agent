@@ -52,8 +52,15 @@ class Settings(BaseSettings):
     sentry_dsn: str | None = None
     prometheus_port: int = 9090
 
-    # CORS
-    cors_origins: list[str] = ["*"]
+    # CORS（生产环境必须通过环境变量配置，禁用 * ）
+    cors_origins_raw: str = Field(default="*", alias="CORS_ORIGINS")
+
+    @property
+    def cors_origins(self) -> list[str]:
+        origins = [o.strip() for o in self.cors_origins_raw.split(",") if o.strip()]
+        if self.is_production and "*" in origins:
+            return ["https://openmedicareagent.online"]
+        return origins
 
     # Default admin credentials (auto-created if no admin exists)
     default_admin_email: str = "admin@medicareai.dev"
