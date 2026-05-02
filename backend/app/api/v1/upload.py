@@ -38,10 +38,21 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 # Upload directory (configurable via env, default /app/uploads)
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "/app/uploads"))
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Public URL prefix for serving uploaded files
 UPLOAD_URL_PREFIX = os.environ.get("UPLOAD_URL_PREFIX", "/uploads")
+
+
+def _ensure_upload_dir() -> None:
+    """Create upload directory if possible; skip on permission errors.
+
+    In containerised environments the directory may already exist or
+    be created via volume mounts.
+    """
+    try:
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        pass
 
 
 def _generate_filename(original_name: str, user_id: str) -> str:
@@ -85,6 +96,7 @@ async def upload_file(
     # Generate unique filename
     user_id = str(current_user.id)
     filename = _generate_filename(file.filename or "unknown", user_id)
+    _ensure_upload_dir()
     file_path = UPLOAD_DIR / filename
 
     # Save file
