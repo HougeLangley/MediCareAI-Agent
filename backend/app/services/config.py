@@ -127,8 +127,8 @@ class DynamicConfigService:
 
     @classmethod
     async def rag_chunk_size(cls, db: AsyncSession) -> int:
-        return await cls.get_int(db, "rag.chunk_size", default=500)
+        return await cls.get_int(db, "rag.chunk_size", default=1000)
 
     @classmethod
     async def rag_chunk_overlap(cls, db: AsyncSession) -> int:
-        return await cls.get_int(db, "rag.chunk_overlap", default=50)
+        return await cls.get_int(db, "rag.chunk_overlap", default=200)

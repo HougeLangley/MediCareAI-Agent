@@ -14,8 +14,14 @@ from app.core.config import get_settings
 settings = get_settings()
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
-GUEST_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
+
+# Time unit constants for token expiration calculations
+_MINUTES_PER_HOUR = 60
+_HOURS_PER_DAY = 24
+_DAYS_PER_WEEK = 7
+
+ACCESS_TOKEN_EXPIRE_MINUTES = _MINUTES_PER_HOUR * _HOURS_PER_DAY * _DAYS_PER_WEEK  # 7 days
+GUEST_TOKEN_EXPIRE_MINUTES = _MINUTES_PER_HOUR * _HOURS_PER_DAY  # 1 day
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

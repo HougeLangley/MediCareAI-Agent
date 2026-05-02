@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import CurrentUser, get_current_user
 from app.core.config import get_settings
 from app.core.security import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
     create_guest_token,
     decode_token,
@@ -103,7 +104,7 @@ async def register(
     return LoginResponse(
         access_token=token,
         token_type="bearer",
-        expires_in=7 * 24 * 60 * 60,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user=UserResponse.model_validate(user),
     )
 
@@ -161,7 +162,7 @@ async def login(
     return LoginResponse(
         access_token=token,
         token_type="bearer",
-        expires_in=7 * 24 * 60 * 60,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user=UserResponse.model_validate(user),
         password_change_required=user.password_change_required,
     )
