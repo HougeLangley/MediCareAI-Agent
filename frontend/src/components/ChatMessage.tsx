@@ -21,7 +21,7 @@ export default function ChatMessage({ message }: Props) {
   return (
     <Box sx={{ display: 'flex', justifyContent: isAgent ? 'flex-start' : 'flex-end', gap: 1.5, mb: 2, px: 1 }}>
       {isAgent && (
-        <Avatar sx={{ bgcolor: '#E8956A', width: 36, height: 36, mt: 0.5 }}>
+        <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36, mt: 0.5 }}>
           <SmartToyIcon sx={{ fontSize: 20 }} />
         </Avatar>
       )}
@@ -30,10 +30,10 @@ export default function ChatMessage({ message }: Props) {
         <Paper elevation={0} sx={{
           p: 1.5,
           borderRadius: isAgent ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
-          background: isAgent ? '#F5E6D3' : '#FFFFFF',
+          background: isAgent ? '#F5E6D3' : 'background.paper',
           border: isAgent ? 'none' : '1px solid #F5E6D3',
         }}>
-          <Typography variant="body2" sx={{ color: '#5C4033', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6 }}>
+          <Typography variant="body2" sx={{ color: 'text.primary', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6 }}>
             {message.content || (message.isStreaming ? '思考中...' : '')}
           </Typography>
         </Paper>
@@ -57,7 +57,7 @@ export default function ChatMessage({ message }: Props) {
       </Box>
 
       {!isAgent && (
-        <Avatar sx={{ bgcolor: '#D4835A', width: 36, height: 36, mt: 0.5 }}>
+        <Avatar sx={{ bgcolor: 'primary.dark', width: 36, height: 36, mt: 0.5 }}>
           <PersonIcon sx={{ fontSize: 20 }} />
         </Avatar>
       )}

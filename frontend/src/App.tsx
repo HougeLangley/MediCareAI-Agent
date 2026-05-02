@@ -38,7 +38,7 @@ import EmailManagementPage from './admin/pages/EmailManagementPage';
 function LoadingFallback() {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-      <CircularProgress sx={{ color: '#E8956A' }} />
+      <CircularProgress sx={{ color: 'primary.main' }} />
     </Box>
   );
 }

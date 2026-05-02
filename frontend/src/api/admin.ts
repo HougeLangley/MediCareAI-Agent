@@ -14,20 +14,7 @@ import type {
   SystemSettingUpdate,
 } from '../types/admin';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1';
-
-function getToken(): string | null {
-  return localStorage.getItem('access_token');
-}
-
-function authHeaders(): Record<string, string> {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-function jsonHeaders(): Record<string, string> {
-  return { 'Content-Type': 'application/json', ...authHeaders() };
-}
+import { API_BASE, authHeaders, jsonHeaders, getToken } from './client';
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {

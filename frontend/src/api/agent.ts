@@ -6,11 +6,7 @@
 
 import type { ApiResponse, ChatSession, GuestStatus, RouteResponse, SSEEvent } from '../types/agent';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1';
-
-function getToken(): string | null {
-  return localStorage.getItem('access_token');
-}
+import { API_BASE, getToken } from './client';
 
 function getGuestToken(): string | null {
   return localStorage.getItem('guest_token');

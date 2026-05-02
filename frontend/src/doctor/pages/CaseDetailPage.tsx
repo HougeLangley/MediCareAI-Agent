@@ -263,16 +263,16 @@ export default function CaseDetailPage() {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <IconButton onClick={() => navigate('/doctor/cases')} sx={{ color: '#607D8B' }}>
+          <IconButton onClick={() => navigate('/doctor/cases')} sx={{ color: 'text.secondary' }}>
             <ArrowBackIcon />
           </IconButton>
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ color: '#263238', fontWeight: 600, lineHeight: 1.3 }}>
+            <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, lineHeight: 1.3 }}>
               {loading ? <Skeleton width={220} /> : caseData?.title}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
-              <PersonIcon sx={{ fontSize: 16, color: '#607D8B' }} />
-              <Typography variant="body2" sx={{ color: '#607D8B' }}>
+              <PersonIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 {loading ? <Skeleton width={120} /> : `患者：${caseData?.patient_name}`}
               </Typography>
               {!loading && caseData && (
@@ -303,7 +303,7 @@ export default function CaseDetailPage() {
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                   <SmartToyIcon color="primary" />
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#263238' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     Agent 结构化摘要
                   </Typography>
                 </Box>
@@ -313,11 +313,11 @@ export default function CaseDetailPage() {
                 ) : caseData?.structured_report ? (
  <Grid container spacing={2}>
  <Grid>
-                      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#E3F2FD' }}>
+                      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'primary.light' }}>
                         <Typography variant="caption" sx={{ color: '#1976D2', fontWeight: 600 }}>
                           首选诊断
                         </Typography>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#263238', mt: 0.5 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary', mt: 0.5 }}>
                           {caseData.structured_report.primary_diagnosis}
                         </Typography>
                         <Box sx={{ mt: 1 }}>
@@ -351,12 +351,12 @@ export default function CaseDetailPage() {
 
  <Grid>
                       <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                        <Typography variant="caption" sx={{ color: '#607D8B', fontWeight: 600 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                           关键发现
                         </Typography>
                         <Box component="ul" sx={{ m: 0, pl: 2, mt: 0.5 }}>
                           {caseData.structured_report.key_findings.map((f, idx) => (
-                            <Typography component="li" variant="body2" key={idx} sx={{ color: '#263238', py: 0.25 }}>
+                            <Typography component="li" variant="body2" key={idx} sx={{ color: 'text.primary', py: 0.25 }}>
                               {f}
                             </Typography>
                           ))}
@@ -392,7 +392,7 @@ export default function CaseDetailPage() {
             {/* 病历时间线 */}
             <Card sx={{ mb: 3 }}>
               <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#263238', mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary', mb: 2 }}>
                   病历时间线
                 </Typography>
                 {loading ? (
@@ -402,10 +402,10 @@ export default function CaseDetailPage() {
                     {caseData?.timeline.map((event, index) => (
                       <Step key={index}>
                         <StepLabel>
-                          <Typography variant="caption" sx={{ fontWeight: 600, color: '#263238' }}>
+                          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary' }}>
                             {event.label}
                           </Typography>
-                          <Typography variant="caption" display="block" sx={{ color: '#607D8B', fontSize: '0.7rem' }}>
+                          <Typography variant="caption" display="block" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
                             {event.date}
                           </Typography>
                         </StepLabel>
@@ -415,7 +415,7 @@ export default function CaseDetailPage() {
                 )}
                 {!loading && caseData && (
                   <Box sx={{ mt: 2, px: 1 }}>
-                    <Typography variant="body2" sx={{ color: '#607D8B' }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       最新进展：{caseData.timeline[caseData.timeline.length - 1].description}
                     </Typography>
                   </Box>
@@ -426,7 +426,7 @@ export default function CaseDetailPage() {
             {/* 医生评论区 */}
             <Card>
               <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#263238', mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary', mb: 2 }}>
                   医生评论
                 </Typography>
 
@@ -440,7 +440,7 @@ export default function CaseDetailPage() {
                       <ListItemAvatar>
                         <Avatar
                           sx={{
-                            bgcolor: c.author === 'AI助手' ? '#E3F2FD' : '#EDE7F6',
+                            bgcolor: c.author === 'AI助手' ? 'primary.light' : '#EDE7F6',
                             color: c.author === 'AI助手' ? '#1976D2' : '#5E35B1',
                             width: 36,
                             height: 36,
@@ -453,10 +453,10 @@ export default function CaseDetailPage() {
                       <ListItemText
                         primary={
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600, color: '#263238' }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                               {c.author}
                             </Typography>
-                            <Typography variant="caption" sx={{ color: '#90A4AE' }}>
+                            <Typography variant="caption" sx={{ color: 'secondary.light' }}>
                               {formatDate(c.created_at)}
                             </Typography>
                           </Box>
@@ -509,7 +509,7 @@ export default function CaseDetailPage() {
             {/* 患者基本信息 */}
             <Card sx={{ mb: 3 }}>
               <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#263238', mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary', mb: 2 }}>
                   患者信息
                 </Typography>
                 {loading ? (
@@ -517,14 +517,14 @@ export default function CaseDetailPage() {
                 ) : (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Avatar sx={{ bgcolor: '#2196F3', width: 48, height: 48 }}>
+                      <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48 }}>
                         {caseData?.patient_name?.[0]}
                       </Avatar>
                       <Box>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#263238' }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                           {caseData?.patient_name}
                         </Typography>
-                        <Typography variant="body2" sx={{ color: '#607D8B' }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                           ID: {caseData?.patient_id}
                         </Typography>
                       </Box>
@@ -534,42 +534,42 @@ export default function CaseDetailPage() {
 
                     <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
                       <Box>
-                        <Typography variant="caption" sx={{ color: '#90A4AE' }}>
+                        <Typography variant="caption" sx={{ color: 'secondary.light' }}>
                           年龄
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 500, color: '#263238' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                           {caseData?.patient_info.age} 岁
                         </Typography>
                       </Box>
                       <Box>
-                        <Typography variant="caption" sx={{ color: '#90A4AE' }}>
+                        <Typography variant="caption" sx={{ color: 'secondary.light' }}>
                           性别
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 500, color: '#263238' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                           {caseData?.patient_info.gender}
                         </Typography>
                       </Box>
                       <Box>
-                        <Typography variant="caption" sx={{ color: '#90A4AE' }}>
+                        <Typography variant="caption" sx={{ color: 'secondary.light' }}>
                           身高
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 500, color: '#263238' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                           {caseData?.patient_info.height}
                         </Typography>
                       </Box>
                       <Box>
-                        <Typography variant="caption" sx={{ color: '#90A4AE' }}>
+                        <Typography variant="caption" sx={{ color: 'secondary.light' }}>
                           体重
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 500, color: '#263238' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                           {caseData?.patient_info.weight}
                         </Typography>
                       </Box>
                       <Box>
-                        <Typography variant="caption" sx={{ color: '#90A4AE' }}>
+                        <Typography variant="caption" sx={{ color: 'secondary.light' }}>
                           血型
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 500, color: '#263238' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                           {caseData?.patient_info.bloodType}
                         </Typography>
                       </Box>
@@ -578,7 +578,7 @@ export default function CaseDetailPage() {
                     <Divider sx={{ my: 0.5 }} />
 
                     <Box>
-                      <Typography variant="caption" sx={{ color: '#90A4AE', display: 'block', mb: 0.5 }}>
+                      <Typography variant="caption" sx={{ color: 'secondary.light', display: 'block', mb: 0.5 }}>
                         过敏史
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
@@ -604,12 +604,12 @@ export default function CaseDetailPage() {
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                   <HealingIcon color="primary" />
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#263238' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     自然语言指令
                   </Typography>
                 </Box>
 
-                <Typography variant="body2" sx={{ color: '#607D8B', mb: 1.5 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
                   用自然语言告诉 Agent 您的诊疗安排，例如：
                 </Typography>
 
@@ -621,12 +621,12 @@ export default function CaseDetailPage() {
                       variant="outlined"
                       onClick={() => setInstructionInput(text)}
                       sx={{
-                        borderColor: '#90A4AE',
-                        color: '#607D8B',
+                        borderColor: 'secondary.light',
+                        color: 'text.secondary',
                         textTransform: 'none',
                         fontWeight: 500,
                         borderRadius: 2,
-                        '&:hover': { borderColor: '#2196F3', color: '#2196F3', bgcolor: '#E3F2FD' },
+                        '&:hover': { borderColor: 'primary.main', color: 'primary.main', bgcolor: 'primary.light' },
                       }}
                     >
                       {text}
@@ -664,7 +664,7 @@ export default function CaseDetailPage() {
                 />
 
                 {sendingInstruction && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, color: '#607D8B' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, color: 'text.secondary' }}>
                     <CircularProgress size={16} />
                     <Typography variant="body2">Agent 正在处理指令...</Typography>
                   </Box>
@@ -674,7 +674,7 @@ export default function CaseDetailPage() {
                   <Box sx={{ mt: 2 }}>
                     <Paper
                       variant="outlined"
-                      sx={{ p: 2, borderRadius: 2, bgcolor: '#E3F2FD', borderColor: '#90CAF9' }}
+                      sx={{ p: 2, borderRadius: 2, bgcolor: 'primary.light', borderColor: '#90CAF9' }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                         <AssignmentTurnedInIcon color="primary" sx={{ fontSize: 20 }} />
@@ -682,16 +682,16 @@ export default function CaseDetailPage() {
                           Agent 已生成任务
                         </Typography>
                       </Box>
-                      <Typography variant="body2" sx={{ color: '#37474F', mb: 1 }}>
+                      <Typography variant="body2" sx={{ color: 'text.primary', mb: 1 }}>
                         {instructionResult.message}
                       </Typography>
                       <Box component="ul" sx={{ m: 0, pl: 2 }}>
                         {instructionResult.tasks_created.map((task, idx) => (
                           <Box component="li" key={idx} sx={{ mb: 0.5 }}>
-                            <Typography variant="body2" sx={{ color: '#263238' }}>
+                            <Typography variant="body2" sx={{ color: 'text.primary' }}>
                               {task.description}
                               {task.due_date && (
-                                <Typography component="span" variant="caption" sx={{ color: '#607D8B', ml: 0.5 }}>
+                                <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 0.5 }}>
                                   <ScheduleIcon sx={{ fontSize: 12, verticalAlign: 'middle', mr: 0.25 }} />
                                   {task.due_date}
                                 </Typography>

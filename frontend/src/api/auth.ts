@@ -1,6 +1,6 @@
 /** 认证 API 服务层 — 登录/注册/身份切换 */
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1';
+import { API_BASE } from './client';
 
 function jsonHeaders(): Record<string, string> {
   return { 'Content-Type': 'application/json' };

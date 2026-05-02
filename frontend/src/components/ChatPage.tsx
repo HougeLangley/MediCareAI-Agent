@@ -187,16 +187,16 @@ export default function ChatPage() {
       />
 
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <AppBar position="static" elevation={0} sx={{ bgcolor: '#FFFBF5', borderBottom: '1px solid #F5E6D3', color: '#5C4033' }}>
+        <AppBar position="static" elevation={0} sx={{ bgcolor: '#FFFBF5', borderBottom: '1px solid #F5E6D3', color: 'text.primary' }}>
           <Toolbar sx={{ minHeight: 56 }}>
-            <IconButton edge="start" sx={{ mr: 2, display: { md: 'none' }, color: '#5C4033' }} onClick={() => setMobileOpen(true)}>
+            <IconButton edge="start" sx={{ mr: 2, display: { md: 'none' }, color: 'text.primary' }} onClick={() => setMobileOpen(true)}>
               <MenuIcon />
             </IconButton>
             <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 500 }}>
               {sessions.find((s) => s.id === currentSessionId)?.title || '智能医疗助手'}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#4CAF50', mr: 0.5 }} />
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main', mr: 0.5 }} />
               <Typography variant="caption" color="text.secondary">在线</Typography>
             </Box>
           </Toolbar>
@@ -227,13 +227,13 @@ export default function ChatPage() {
         </Box>
 
         {showScrollDown && (
-          <Fab size="small" color="primary" sx={{ position: 'absolute', bottom: 100, right: 24, bgcolor: '#E8956A', '&:hover': { bgcolor: '#D4835A' } }}
+          <Fab size="small" color="primary" sx={{ position: 'absolute', bottom: 100, right: 24, bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}
             onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}>
             <KeyboardArrowDownIcon />
           </Fab>
         )}
 
-        <Box sx={{ p: 2, borderTop: '1px solid #F5E6D3', bgcolor: '#FFFFFF' }}>
+        <Box sx={{ p: 2, borderTop: '1px solid #F5E6D3', bgcolor: 'background.paper' }}>
           <ChatInput
             onSend={handleSend}
             disabled={isStreaming}

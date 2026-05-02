@@ -177,16 +177,16 @@ const RegisterPage: React.FC = () => {
             padding: { xs: 3, sm: 5 },
             maxWidth: 480,
             margin: '0 auto',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'background.paper',
             border: '1px solid #F5E6D3',
           }}
         >
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <LocalHospital sx={{ fontSize: 56, color: '#E8956A', mb: 2 }} />
-            <Typography variant="h4" component="h1" sx={{ color: '#5C4033', fontWeight: 'bold' }} gutterBottom>
+            <LocalHospital sx={{ fontSize: 56, color: 'primary.main', mb: 2 }} />
+            <Typography variant="h4" component="h1" sx={{ color: 'text.primary', fontWeight: 'bold' }} gutterBottom>
               创建账户
             </Typography>
-            <Typography variant="body1" sx={{ color: '#8B7355' }}>
+            <Typography variant="body1" sx={{ color: 'text.secondary' }}>
               加入 MediCareAI，开启智能医疗之旅
             </Typography>
           </Box>
@@ -212,13 +212,13 @@ const RegisterPage: React.FC = () => {
                     textTransform: 'none',
                     fontWeight: 500,
                     borderColor: '#F5E6D3',
-                    color: '#8B7355',
+                    color: 'text.secondary',
                     '&.Mui-selected': {
-                      backgroundColor: '#E8956A',
-                      color: '#FFFFFF',
-                      borderColor: '#E8956A',
+                      backgroundColor: 'primary.main',
+                      color: 'background.paper',
+                      borderColor: 'primary.main',
                       '&:hover': {
-                        backgroundColor: '#D4835A',
+                        backgroundColor: 'primary.dark',
                       },
                     },
                   },
@@ -250,7 +250,7 @@ const RegisterPage: React.FC = () => {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Person sx={{ color: '#8B7355' }} />
+                      <Person sx={{ color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
                 },
@@ -280,7 +280,7 @@ const RegisterPage: React.FC = () => {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Email sx={{ color: '#8B7355' }} />
+                      <Email sx={{ color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
                 },
@@ -310,7 +310,7 @@ const RegisterPage: React.FC = () => {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Lock sx={{ color: '#8B7355' }} />
+                      <Lock sx={{ color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
                   endAdornment: (
@@ -338,10 +338,10 @@ const RegisterPage: React.FC = () => {
             {formData.password && (
               <Box sx={{ mb: 1.5, px: 0.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="caption" sx={{ color: '#8B7355' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                     密码强度
                   </Typography>
-                  <Typography variant="caption" sx={{ color: passwordStrength.color === 'error' ? '#E57373' : passwordStrength.color === 'warning' ? '#FFB300' : '#81C784', fontWeight: 600 }}>
+                  <Typography variant="caption" sx={{ color: passwordStrength.color === 'error' ? 'error.main' : passwordStrength.color === 'warning' ? '#FFB300' : '#81C784', fontWeight: 600 }}>
                     {passwordStrength.label}
                   </Typography>
                 </Box>
@@ -374,7 +374,7 @@ const RegisterPage: React.FC = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Lock sx={{ color: '#8B7355' }} />
+                    <Lock sx={{ color: 'text.secondary' }} />
                   </InputAdornment>
                 ),
                 endAdornment: (
@@ -413,7 +413,7 @@ const RegisterPage: React.FC = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Phone sx={{ color: '#8B7355' }} />
+                    <Phone sx={{ color: 'text.secondary' }} />
                   </InputAdornment>
                 ),
               }}
@@ -434,16 +434,16 @@ const RegisterPage: React.FC = () => {
               sx={{
                 py: 1.5,
                 borderRadius: 3,
-                backgroundColor: '#E8956A',
+                backgroundColor: 'primary.main',
                 fontWeight: 600,
                 fontSize: '1rem',
                 textTransform: 'none',
                 '&:hover': {
-                  backgroundColor: '#D4835A',
+                  backgroundColor: 'primary.dark',
                 },
                 '&.Mui-disabled': {
-                  backgroundColor: '#FFCCB0',
-                  color: '#FFFFFF',
+                  backgroundColor: 'primary.light',
+                  color: 'background.paper',
                 },
               }}
             >
@@ -456,7 +456,7 @@ const RegisterPage: React.FC = () => {
           </Box>
 
           <Box sx={{ textAlign: 'center', mt: 3 }}>
-            <Typography variant="body2" sx={{ color: '#8B7355' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               已有账号？{' '}
               <Link
                 component="button"
@@ -464,7 +464,7 @@ const RegisterPage: React.FC = () => {
                 variant="body2"
                 onClick={() => navigate('/login')}
                 sx={{
-                  color: '#E8956A',
+                  color: 'primary.main',
                   fontWeight: 600,
                   textDecoration: 'none',
                   '&:hover': {
@@ -492,7 +492,7 @@ const RegisterPage: React.FC = () => {
             width: '100%',
             borderRadius: 2,
             backgroundColor: '#FFF8E1',
-            color: '#5C4033',
+            color: 'text.primary',
             '& .MuiAlert-icon': {
               color: '#81C784',
             },

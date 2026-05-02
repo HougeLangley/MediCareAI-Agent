@@ -156,7 +156,7 @@ export default function DoctorCases() {
     <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
       {/* 左侧筛选栏 */}
       <Box sx={{ width: { xs: '100%', md: 220 }, flexShrink: 0 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: '#263238', mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', mb: 2 }}>
           患者列表
         </Typography>
         <TextField
@@ -167,7 +167,7 @@ export default function DoctorCases() {
           onChange={(e) => setSearch(e.target.value)}
           slotProps={{
             input: {
-              startAdornment: <SearchIcon sx={{ color: '#90A4AE', mr: 1, fontSize: '1.1rem' }} />,
+              startAdornment: <SearchIcon sx={{ color: 'secondary.light', mr: 1, fontSize: '1.1rem' }} />,
             },
           }}
           sx={{
@@ -190,8 +190,8 @@ export default function DoctorCases() {
                   justifyContent: 'flex-start',
                   textTransform: 'none',
                   fontWeight: isActive ? 600 : 500,
-                  color: isActive ? '#2196F3' : '#607D8B',
-                  bgcolor: isActive ? '#E3F2FD' : 'transparent',
+                  color: isActive ? 'primary.main' : 'text.secondary',
+                  bgcolor: isActive ? 'primary.light' : 'transparent',
                   borderRadius: 2,
                   px: 2,
                   py: 1,
@@ -207,12 +207,12 @@ export default function DoctorCases() {
         </Stack>
       </Box>
 
-      <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' }, borderColor: '#E0E6ED' }} />
+      <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' }, borderColor: 'secondary.light' }} />
 
       {/* 患者列表 */}
       <Box sx={{ flexGrow: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="body2" sx={{ color: '#607D8B' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             共 {filteredPatients.length} 位患者
           </Typography>
         </Box>
@@ -238,12 +238,12 @@ export default function DoctorCases() {
                 >
                   <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                      <Avatar sx={{ bgcolor: '#2196F3', fontWeight: 600 }}>
+                      <Avatar sx={{ bgcolor: 'primary.main', fontWeight: 600 }}>
                         {p.name[0]}
                       </Avatar>
                       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#263238' }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                             {p.name}
                           </Typography>
                           <Chip
@@ -260,10 +260,10 @@ export default function DoctorCases() {
                             />
                           )}
                         </Box>
-                        <Typography variant="body2" sx={{ color: '#607D8B', mb: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
                           {p.last_activity}
                         </Typography>
-                        <Typography variant="body2" sx={{ color: '#37474F', mb: 1 }}>
+                        <Typography variant="body2" sx={{ color: 'text.primary', mb: 1 }}>
                           {p.agent_summary}
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -275,8 +275,8 @@ export default function DoctorCases() {
                             sx={{
                               textTransform: 'none',
                               borderRadius: 2,
-                              borderColor: '#2196F3',
-                              color: '#2196F3',
+                              borderColor: 'primary.main',
+                              color: 'primary.main',
                               '&:hover': { bgcolor: 'rgba(33,150,243,0.04)' },
                             }}
                           >
@@ -290,8 +290,8 @@ export default function DoctorCases() {
                             sx={{
                               textTransform: 'none',
                               borderRadius: 2,
-                              color: '#607D8B',
-                              '&:hover': { color: '#2196F3', bgcolor: 'rgba(33,150,243,0.04)' },
+                              color: 'text.secondary',
+                              '&:hover': { color: 'primary.main', bgcolor: 'rgba(33,150,243,0.04)' },
                             }}
                           >
                             发消息
@@ -301,7 +301,7 @@ export default function DoctorCases() {
                       <IconButton
                         size="small"
                         onClick={() => handleViewCase(p.id)}
-                        sx={{ color: '#90A4AE', mt: 0.5 }}
+                        sx={{ color: 'secondary.light', mt: 0.5 }}
                       >
                         <ArrowForwardIosIcon fontSize="small" />
                       </IconButton>
@@ -311,7 +311,7 @@ export default function DoctorCases() {
               ))}
           {!loading && filteredPatients.length === 0 && (
             <Card sx={{ borderRadius: 3, textAlign: 'center', py: 6 }}>
-              <Typography variant="body1" sx={{ color: '#607D8B' }}>
+              <Typography variant="body1" sx={{ color: 'text.secondary' }}>
                 没有找到匹配的患者
               </Typography>
             </Card>

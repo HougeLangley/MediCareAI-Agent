@@ -66,8 +66,8 @@ export default function Sidebar({
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, color: '#5C4033' }}>🩺 MediCareAI</Typography>
-        <IconButton size="small" onClick={onNewSession} sx={{ color: '#E8956A' }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>🩺 MediCareAI</Typography>
+        <IconButton size="small" onClick={onNewSession} sx={{ color: 'primary.main' }}>
           <AddIcon />
         </IconButton>
       </Box>
@@ -76,17 +76,17 @@ export default function Sidebar({
 
       <Box sx={{ p: 1.5 }}>
         <Button fullWidth variant="contained" startIcon={<AddIcon />} onClick={onNewSession}
-          sx={{ borderRadius: 2, textTransform: 'none', bgcolor: '#E8956A', '&:hover': { bgcolor: '#D4835A' } }}>
+          sx={{ borderRadius: 2, textTransform: 'none', bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}>
           新建会话
         </Button>
       </Box>
 
       <Box sx={{ flex: 1, overflow: 'auto', px: 1 }}>
         <ListItemButton onClick={() => setHistoryOpen(!historyOpen)} sx={{ borderRadius: 2, py: 0.5 }}>
-          <Typography variant="body2" sx={{ fontWeight: 600, color: '#5C4033', flex: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', flex: 1 }}>
             🗂️ 会话历史
           </Typography>
-          {historyOpen ? <ExpandLessIcon sx={{ color: '#8B7355' }} /> : <ExpandMoreIcon sx={{ color: '#8B7355' }} />}
+          {historyOpen ? <ExpandLessIcon sx={{ color: 'text.secondary' }} /> : <ExpandMoreIcon sx={{ color: 'text.secondary' }} />}
         </ListItemButton>
 
         <Collapse in={historyOpen}>
@@ -104,9 +104,9 @@ export default function Sidebar({
                         '&.Mui-selected': { bgcolor: '#F5E6D3', '&:hover': { bgcolor: '#F5E6D3' } },
                         '&:hover': { bgcolor: '#FFF8F0' },
                       }}>
-                      <ChatIcon sx={{ fontSize: 16, color: '#8B7355', mr: 1 }} />
+                      <ChatIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 1 }} />
                       <ListItemText primary={s.title || '新对话'}
-                        slotProps={{ primary: { variant: 'body2', noWrap: true, sx: { color: s.id === currentSessionId ? '#5C4033' : '#8B7355', fontWeight: s.id === currentSessionId ? 500 : 400 } } }}
+                        slotProps={{ primary: { variant: 'body2', noWrap: true, sx: { color: s.id === currentSessionId ? 'text.primary' : 'text.secondary', fontWeight: s.id === currentSessionId ? 500 : 400 } } }}
                       />
                     </ListItemButton>
                   </ListItem>
@@ -128,20 +128,20 @@ export default function Sidebar({
         <List dense>
           <ListItem disablePadding>
             <ListItemButton sx={{ borderRadius: 2, py: 0.75 }}>
-              <HealingIcon sx={{ fontSize: 18, color: '#E8956A', mr: 1.5 }} />
-              <ListItemText primary="📊 健康档案" slotProps={{ primary: { variant: 'body2', sx: { color: '#5C4033' } } }} />
+              <HealingIcon sx={{ fontSize: 18, color: 'primary.main', mr: 1.5 }} />
+              <ListItemText primary="📊 健康档案" slotProps={{ primary: { variant: 'body2', sx: { color: 'text.primary' } } }} />
             </ListItemButton>
           </ListItem>
           <ListItem disablePadding>
             <ListItemButton sx={{ borderRadius: 2, py: 0.75 }}>
-              <CalendarMonthIcon sx={{ fontSize: 18, color: '#E8956A', mr: 1.5 }} />
-              <ListItemText primary="📅 随访计划" slotProps={{ primary: { variant: 'body2', sx: { color: '#5C4033' } } }} />
+              <CalendarMonthIcon sx={{ fontSize: 18, color: 'primary.main', mr: 1.5 }} />
+              <ListItemText primary="📅 随访计划" slotProps={{ primary: { variant: 'body2', sx: { color: 'text.primary' } } }} />
             </ListItemButton>
           </ListItem>
           <ListItem disablePadding>
             <ListItemButton sx={{ borderRadius: 2, py: 0.75 }}>
-              <MedicationIcon sx={{ fontSize: 18, color: '#E8956A', mr: 1.5 }} />
-              <ListItemText primary="💊 用药提醒" slotProps={{ primary: { variant: 'body2', sx: { color: '#5C4033' } } }} />
+              <MedicationIcon sx={{ fontSize: 18, color: 'primary.main', mr: 1.5 }} />
+              <ListItemText primary="💊 用药提醒" slotProps={{ primary: { variant: 'body2', sx: { color: 'text.primary' } } }} />
             </ListItemButton>
           </ListItem>
         </List>

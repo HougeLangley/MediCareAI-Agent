@@ -140,7 +140,7 @@ export default function DoctorDashboard() {
   return (
     <Box>
       {/* 顶部统计卡片 */}
-      <Typography variant="h5" sx={{ fontWeight: 700, color: '#263238', mb: 3 }}>
+      <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary', mb: 3 }}>
         工作台
       </Typography>
       <Grid container spacing={2} sx={{ mb: 4 }}>
@@ -163,13 +163,13 @@ export default function DoctorDashboard() {
                   {s.icon}
                 </Box>
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#607D8B', mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
                     {s.label}
                   </Typography>
                   {loadingStats ? (
                     <Skeleton variant="text" width={40} height={32} />
                   ) : (
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: '#263238' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
                       {stats[s.key]}
                     </Typography>
                   )}
@@ -182,10 +182,10 @@ export default function DoctorDashboard() {
 
       {/* 患者列表概览 */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: '#263238' }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
           最近患者
         </Typography>
-        <IconButton size="small" onClick={() => navigate('/doctor/cases')} sx={{ color: '#2196F3' }}>
+        <IconButton size="small" onClick={() => navigate('/doctor/cases')} sx={{ color: 'primary.main' }}>
           <ArrowForwardIosIcon fontSize="small" />
         </IconButton>
       </Box>
@@ -213,12 +213,12 @@ export default function DoctorDashboard() {
               >
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                    <Avatar sx={{ bgcolor: '#2196F3', fontWeight: 600 }}>
+                    <Avatar sx={{ bgcolor: 'primary.main', fontWeight: 600 }}>
                       {p.name[0]}
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#263238' }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                           {p.name}
                         </Typography>
                         <Chip
@@ -235,14 +235,14 @@ export default function DoctorDashboard() {
                           />
                         )}
                       </Box>
-                      <Typography variant="body2" sx={{ color: '#607D8B', mb: 0.5 }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
                         {p.last_activity}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: '#37474F' }}>
+                      <Typography variant="body2" sx={{ color: 'text.primary' }}>
                         {p.agent_summary}
                       </Typography>
                     </Box>
-                    <IconButton size="small" sx={{ color: '#90A4AE' }}>
+                    <IconButton size="small" sx={{ color: 'secondary.light' }}>
                       <ArrowForwardIosIcon fontSize="small" />
                     </IconButton>
                   </Box>

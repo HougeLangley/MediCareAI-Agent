@@ -1,11 +1,8 @@
 /** 医生端 API 服务层 */
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1';
+import { API_BASE } from './client';
 
-function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem('access_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import { authHeaders } from './client';
 
 export interface PatientSummary {
   id: string;

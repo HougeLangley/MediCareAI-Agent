@@ -39,14 +39,14 @@ export default function ChatInput({ onSend, disabled = false, quickReplies, onQu
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5, px: 2 }}>
           {quickReplies.map((reply) => (
             <Chip key={reply} label={reply} size="small" clickable onClick={() => onQuickReply?.(reply)}
-              sx={{ bgcolor: '#FFF8F0', border: '1px solid #F5E6D3', color: '#5C4033', '&:hover': { bgcolor: '#F5E6D3', borderColor: '#E8956A' }, fontSize: 13, height: 28 }} />
+              sx={{ bgcolor: '#FFF8F0', border: '1px solid #F5E6D3', color: 'text.primary', '&:hover': { bgcolor: '#F5E6D3', borderColor: 'primary.main' }, fontSize: 13, height: 28 }} />
           ))}
         </Box>
       )}
 
-      <Paper elevation={2} sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, p: 1.5, borderRadius: 3, border: '1px solid #F5E6D3', bgcolor: '#FFFFFF' }}>
-        <IconButton size="small" sx={{ color: '#8B7355' }} disabled={disabled}><AttachFileIcon fontSize="small" /></IconButton>
-        <IconButton size="small" sx={{ color: '#8B7355' }} disabled={disabled}><ImageIcon fontSize="small" /></IconButton>
+      <Paper elevation={2} sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, p: 1.5, borderRadius: 3, border: '1px solid #F5E6D3', bgcolor: 'background.paper' }}>
+        <IconButton size="small" sx={{ color: 'text.secondary' }} disabled={disabled}><AttachFileIcon fontSize="small" /></IconButton>
+        <IconButton size="small" sx={{ color: 'text.secondary' }} disabled={disabled}><ImageIcon fontSize="small" /></IconButton>
 
         <TextField
           inputRef={inputRef}
@@ -62,18 +62,18 @@ export default function ChatInput({ onSend, disabled = false, quickReplies, onQu
           slotProps={{
             input: {
               disableUnderline: true,
-              sx: { fontSize: 15, color: '#5C4033', '&::placeholder': { color: '#8B7355' } },
+              sx: { fontSize: 15, color: 'text.primary', '&::placeholder': { color: 'text.secondary' } },
             },
           }}
         />
 
         <IconButton size="small" onClick={() => setIsRecording(!isRecording)} disabled={disabled}
-          sx={{ color: isRecording ? '#E57373' : '#8B7355' }}>
+          sx={{ color: isRecording ? 'error.main' : 'text.secondary' }}>
           {isRecording ? <StopIcon fontSize="small" /> : <MicIcon fontSize="small" />}
         </IconButton>
 
         <Button variant="contained" size="small" onClick={handleSend} disabled={disabled || !text.trim()}
-          sx={{ minWidth: 40, width: 40, height: 40, borderRadius: '50%', p: 0, bgcolor: '#E8956A', '&:hover': { bgcolor: '#D4835A' }, '&.Mui-disabled': { bgcolor: '#F5E6D3', color: '#8B7355' } }}>
+          sx={{ minWidth: 40, width: 40, height: 40, borderRadius: '50%', p: 0, bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: '#F5E6D3', color: 'text.secondary' } }}>
           <SendIcon sx={{ fontSize: 18 }} />
         </Button>
       </Paper>

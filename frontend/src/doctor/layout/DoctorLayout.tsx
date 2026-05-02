@@ -79,7 +79,7 @@ export default function DoctorLayout() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <CircularProgress sx={{ color: '#2196F3' }} />
+        <CircularProgress sx={{ color: 'primary.main' }} />
       </Box>
     );
   }
@@ -87,7 +87,7 @@ export default function DoctorLayout() {
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Toolbar sx={{ justifyContent: 'center' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: '#2196F3' }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
           MediCareAI 医生端
         </Typography>
       </Toolbar>
@@ -105,19 +105,19 @@ export default function DoctorLayout() {
                 selected={isSelected}
                 sx={{
                   '&.Mui-selected': {
-                    bgcolor: '#E3F2FD',
+                    bgcolor: 'primary.light',
                     borderRight: '3px solid #2196F3',
                   },
                 }}
               >
-                <ListItemIcon sx={{ color: isSelected ? '#2196F3' : '#607D8B' }}>
+                <ListItemIcon sx={{ color: isSelected ? 'primary.main' : 'text.secondary' }}>
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
                   primary={item.label}
                   primaryTypographyProps={{
                     fontWeight: isSelected ? 600 : 500,
-                    color: isSelected ? '#2196F3' : '#263238',
+                    color: isSelected ? 'primary.main' : 'text.primary',
                   }}
                 />
               </ListItemButton>
@@ -133,15 +133,15 @@ export default function DoctorLayout() {
           startIcon={<SwitchAccountIcon />}
           onClick={handleSwitchToPatient}
           sx={{
-            borderColor: '#90A4AE',
-            color: '#607D8B',
+            borderColor: 'secondary.light',
+            color: 'text.secondary',
             textTransform: 'none',
             fontWeight: 500,
             borderRadius: 2,
             mb: 1,
             '&:hover': {
-              borderColor: '#2196F3',
-              color: '#2196F3',
+              borderColor: 'primary.main',
+              color: 'primary.main',
               bgcolor: 'rgba(33,150,243,0.04)',
             },
           }}
@@ -154,7 +154,7 @@ export default function DoctorLayout() {
           startIcon={<LogoutIcon />}
           onClick={handleLogout}
           sx={{
-            color: '#607D8B',
+            color: 'text.secondary',
             textTransform: 'none',
             fontWeight: 500,
             borderRadius: 2,
@@ -175,7 +175,7 @@ export default function DoctorLayout() {
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
           ml: { md: `${DRAWER_WIDTH}px` },
           bgcolor: '#fff',
-          color: '#263238',
+          color: 'text.primary',
           boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
         }}
       >
@@ -202,7 +202,7 @@ export default function DoctorLayout() {
                   sx={{
                     width: 36,
                     height: 36,
-                    bgcolor: '#2196F3',
+                    bgcolor: 'primary.main',
                     fontSize: '0.875rem',
                     fontWeight: 600,
                   }}
@@ -221,8 +221,8 @@ export default function DoctorLayout() {
               onClick={handleLogout}
               sx={{
                 textTransform: 'none',
-                borderColor: '#E0E6ED',
-                color: '#607D8B',
+                borderColor: 'secondary.light',
+                color: 'text.secondary',
                 borderRadius: 2,
                 '&:hover': {
                   borderColor: '#E53935',

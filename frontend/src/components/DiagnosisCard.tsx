@@ -39,8 +39,8 @@ export default function DiagnosisCard({ report }: Props) {
       <CardContent sx={{ pb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <LocalHospitalIcon sx={{ color: '#E8956A', fontSize: 20 }} />
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#5C4033' }}>诊断报告</Typography>
+            <LocalHospitalIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>诊断报告</Typography>
           </Box>
           <IconButton size="small" onClick={() => setExpanded(!expanded)}>
             {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -51,9 +51,9 @@ export default function DiagnosisCard({ report }: Props) {
           <Box sx={{ mb: 2 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom>初步诊断</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: '#E8956A' }}>{report.primary_diagnosis}</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>{report.primary_diagnosis}</Typography>
               {report.icd11_code && (
-                <Chip label={report.icd11_code} size="small" variant="outlined" sx={{ borderColor: '#F5E6D3', color: '#8B7355' }} />
+                <Chip label={report.icd11_code} size="small" variant="outlined" sx={{ borderColor: '#F5E6D3', color: 'text.secondary' }} />
               )}
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
@@ -70,8 +70,8 @@ export default function DiagnosisCard({ report }: Props) {
               <Typography variant="body2" color="text.secondary" gutterBottom>鉴别诊断</Typography>
               <Stack spacing={1}>
                 {report.differential_diagnoses.map((d, i) => (
-                  <Box key={i} sx={{ bgcolor: '#FFFFFF', p: 1.5, borderRadius: 2, border: '1px solid #F5E6D3' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>{d.diagnosis} <span style={{ color: '#8B7355', fontSize: 12 }}>({d.icd11_code})</span></Typography>
+                  <Box key={i} sx={{ bgcolor: 'background.paper', p: 1.5, borderRadius: 2, border: '1px solid #F5E6D3' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>{d.diagnosis} <span style={{ color: 'text.secondary', fontSize: 12 }}>({d.icd11_code})</span></Typography>
                     <Typography variant="caption" color="text.secondary">{d.reasoning}</Typography>
                   </Box>
                 ))}
@@ -82,12 +82,12 @@ export default function DiagnosisCard({ report }: Props) {
           {report.recommended_exams && report.recommended_exams.length > 0 && (
             <Box sx={{ mb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                <ScienceIcon sx={{ color: '#8B7355', fontSize: 16 }} />
-                <Typography variant="body2" sx={{ fontWeight: 500, color: '#5C4033' }}>建议检查</Typography>
+                <ScienceIcon sx={{ color: 'text.secondary', fontSize: 16 }} />
+                <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>建议检查</Typography>
               </Box>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {report.recommended_exams.map((exam, i) => (
-                  <Chip key={i} label={exam} size="small" sx={{ bgcolor: '#F5E6D3', color: '#5C4033' }} />
+                  <Chip key={i} label={exam} size="small" sx={{ bgcolor: '#F5E6D3', color: 'text.primary' }} />
                 ))}
               </Box>
             </Box>
@@ -96,12 +96,12 @@ export default function DiagnosisCard({ report }: Props) {
           {report.treatment_suggestions && report.treatment_suggestions.length > 0 && (
             <Box sx={{ mb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                <MedicationIcon sx={{ color: '#8B7355', fontSize: 16 }} />
-                <Typography variant="body2" sx={{ fontWeight: 500, color: '#5C4033' }}>治疗建议</Typography>
+                <MedicationIcon sx={{ color: 'text.secondary', fontSize: 16 }} />
+                <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>治疗建议</Typography>
               </Box>
               <ul style={{ margin: 0, paddingLeft: 20 }}>
                 {report.treatment_suggestions.map((s, i) => (
-                  <li key={i}><Typography variant="body2" sx={{ color: '#5C4033' }}>{s}</Typography></li>
+                  <li key={i}><Typography variant="body2" sx={{ color: 'text.primary' }}>{s}</Typography></li>
                 ))}
               </ul>
             </Box>
@@ -110,10 +110,10 @@ export default function DiagnosisCard({ report }: Props) {
           {report.follow_up_plan && (
             <Box sx={{ mb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                <EventNoteIcon sx={{ color: '#8B7355', fontSize: 16 }} />
-                <Typography variant="body2" sx={{ fontWeight: 500, color: '#5C4033' }}>随访计划</Typography>
+                <EventNoteIcon sx={{ color: 'text.secondary', fontSize: 16 }} />
+                <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>随访计划</Typography>
               </Box>
-              <Typography variant="body2" sx={{ color: '#5C4033', bgcolor: '#FFFFFF', p: 1.5, borderRadius: 2 }}>{report.follow_up_plan}</Typography>
+              <Typography variant="body2" sx={{ color: 'text.primary', bgcolor: 'background.paper', p: 1.5, borderRadius: 2 }}>{report.follow_up_plan}</Typography>
             </Box>
           )}
 
@@ -123,11 +123,11 @@ export default function DiagnosisCard({ report }: Props) {
               <Box>
                 {report.red_flags && report.red_flags.length > 0 && (
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1 }}>
-                    <WarningAmberIcon sx={{ color: '#E57373', fontSize: 18, mt: 0.2 }} />
+                    <WarningAmberIcon sx={{ color: 'error.main', fontSize: 18, mt: 0.2 }} />
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, color: '#E57373' }}>警告信号</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500, color: 'error.main' }}>警告信号</Typography>
                       {report.red_flags.map((flag, i) => (
-                        <Typography key={i} variant="body2" sx={{ color: '#E57373', fontSize: 13 }}>• {flag}</Typography>
+                        <Typography key={i} variant="body2" sx={{ color: 'error.main', fontSize: 13 }}>• {flag}</Typography>
                       ))}
                     </Box>
                   </Box>
