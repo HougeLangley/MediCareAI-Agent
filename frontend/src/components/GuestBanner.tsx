@@ -2,6 +2,8 @@ import { Box, Typography, Button, Chip, LinearProgress } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import type { GuestStatus } from '../types/agent';
+import { flexRowGap15 } from '@/styles/sxUtils';
+
 
 interface Props {
   status: GuestStatus | null;
@@ -18,7 +20,7 @@ export default function GuestBanner({ status, onRegister, onLogin }: Props) {
   return (
     <Box sx={{ bgcolor: isNearLimit ? '#FFF3E0' : '#FFF8F0', borderBottom: '1px solid #F5E6D3', px: 2, py: 1.5 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={flexRowGap15}>
           <Chip label="访客模式" size="small"
             sx={{ bgcolor: isNearLimit ? '#FFB300' : '#F5E6D3', color: '#5C4033', fontWeight: 500, fontSize: 12 }} />
           <Typography variant="body2" color={isNearLimit ? 'error' : 'text.secondary'}>

@@ -37,6 +37,8 @@ import {
 } from '@mui/icons-material';
 import { getCaseDetail, addComment, sendPlanInstruction } from '../../api/doctor';
 import type { CaseDetail } from '../../api/doctor';
+import { flexRowGap05Mb05, flexRowGap1, flexRowGap15, flexRowGap1Mb1 } from '@/styles/sxUtils';
+
 
 interface PatientInfo {
   age: number;
@@ -262,7 +264,7 @@ export default function CaseDetailPage() {
           zIndex: 10,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={flexRowGap15}>
           <IconButton onClick={() => navigate('/doctor/cases')} sx={{ color: 'text.secondary' }}>
             <ArrowBackIcon />
           </IconButton>
@@ -366,7 +368,7 @@ export default function CaseDetailPage() {
 
  <Grid>
                       <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#E8F5E9' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                        <Box sx={flexRowGap05Mb05}>
                           <ScienceIcon sx={{ fontSize: 16, color: '#43A047' }} />
                           <Typography variant="caption" sx={{ color: '#2E7D32', fontWeight: 600 }}>
                             建议检查
@@ -452,7 +454,7 @@ export default function CaseDetailPage() {
                       </ListItemAvatar>
                       <ListItemText
                         primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={flexRowGap1}>
                             <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                               {c.author}
                             </Typography>
@@ -516,7 +518,7 @@ export default function CaseDetailPage() {
                   <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 2 }} />
                 ) : (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={flexRowGap15}>
                       <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48 }}>
                         {caseData?.patient_name?.[0]}
                       </Avatar>
@@ -676,7 +678,7 @@ export default function CaseDetailPage() {
                       variant="outlined"
                       sx={{ p: 2, borderRadius: 2, bgcolor: 'primary.light', borderColor: '#90CAF9' }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Box sx={flexRowGap1Mb1}>
                         <AssignmentTurnedInIcon color="primary" sx={{ fontSize: 20 }} />
                         <Typography variant="body2" sx={{ fontWeight: 600, color: '#1976D2' }}>
                           Agent 已生成任务

@@ -9,6 +9,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import SearchIcon from '@mui/icons-material/Search';
 import { listUsers, updateUser } from '../../api/admin';
 import type { UserItem, UserAdminUpdate } from '../../types/admin';
+import { flexRowBetweenMb2 } from '@/styles/sxUtils';
+
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   patient: { label: '患者', color: '#3B82F6' },
@@ -142,7 +144,7 @@ export default function UsersPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={flexRowBetweenMb2}>
         <Typography variant="h5" sx={{ fontWeight: 600 }}>
           用户管理
         </Typography>

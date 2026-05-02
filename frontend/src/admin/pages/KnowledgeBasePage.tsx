@@ -12,6 +12,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import type { DocumentItem, DocumentCreate, DocumentUpdate, DocumentType } from '../../types/admin';
 import {
+import { flexRowBetweenMb2 } from '@/styles/sxUtils';
+
   listDocuments, createDocument, updateDocument, deleteDocument, toggleDocumentActive,
 } from '../../api/admin';
 
@@ -177,7 +179,7 @@ export default function KnowledgeBasePage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={flexRowBetweenMb2}>
         <Typography variant="h5" sx={{ fontWeight: 600 }}>知识库管理</Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
           新建文档

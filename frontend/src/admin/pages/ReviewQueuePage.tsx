@@ -11,6 +11,8 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import HistoryIcon from '@mui/icons-material/History';
 import type { ReviewQueueItem, DocumentReviewLog, ReviewAction } from '../../types/admin';
 import { listReviewQueue, reviewDocument, getDocumentReviewHistory } from '../../api/admin';
+import { flexRowBetween, flexRowBetweenMb2, flexRowGap1 } from '@/styles/sxUtils';
+
 
 const REVIEW_STATUS_LABELS: Record<string, { label: string; color: 'success' | 'warning' | 'error' | 'info' | 'default' }> = {
   pending: { label: '待审核', color: 'warning' },
@@ -93,7 +95,7 @@ export default function ReviewQueuePage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={flexRowBetweenMb2}>
         <Typography variant="h5" sx={{ fontWeight: 600 }}>病例审核队列</Typography>
         <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchQueue}>
           刷新
@@ -130,7 +132,7 @@ export default function ReviewQueuePage() {
                 <TableCell>{statusChip(item.review_status)}</TableCell>
                 <TableCell>
                   {item.agent_review_score !== null ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={flexRowGap1}>
                       <Rating value={item.agent_review_score / 20} readOnly precision={0.5} size="small" />
                       <Typography variant="body2">{item.agent_review_score.toFixed(1)}</Typography>
                     </Box>
@@ -159,7 +161,7 @@ export default function ReviewQueuePage() {
       {/* Review Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={flexRowGap1}>
             <HistoryIcon />
             病例审核 — {selectedItem?.title}
           </Box>
@@ -240,7 +242,7 @@ export default function ReviewQueuePage() {
                 {history.map(h => (
                   <Card key={h.id} variant="outlined" sx={{ mb: 1 }}>
                     <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box sx={flexRowBetween}>
                         <Chip size="small" label={h.action} color={h.action === 'approve' ? 'success' : h.action === 'reject' ? 'error' : 'warning'} />
                         <Typography variant="caption" color="text.secondary">{new Date(h.reviewed_at).toLocaleString('zh-CN')}</Typography>
                       </Box>

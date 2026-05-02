@@ -27,6 +27,8 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import SwitchAccountIcon from '@mui/icons-material/SwitchAccount';
 import { logout, getMe } from '../../api/auth';
 import type { UserInfo } from '../../api/auth';
+import { flexRowGap1, flexRowGap2, pageCenter } from '@/styles/sxUtils';
+
 
 const DRAWER_WIDTH = 240;
 
@@ -78,7 +80,7 @@ export default function DoctorLayout() {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+      <Box sx={pageCenter}>
         <CircularProgress sx={{ color: 'primary.main' }} />
       </Box>
     );
@@ -195,9 +197,9 @@ export default function DoctorLayout() {
                 (i.path !== '/doctor' && location.pathname.startsWith(i.path))
             )?.label || '医生工作台'}
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={flexRowGap2}>
             <Tooltip title={user?.name || user?.email || '医生'}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={flexRowGap1}>
                 <Avatar
                   sx={{
                     width: 36,

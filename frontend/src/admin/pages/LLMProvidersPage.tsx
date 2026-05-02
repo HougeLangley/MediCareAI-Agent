@@ -16,6 +16,8 @@ import {
   listLLMProviders, createLLMProvider, updateLLMProvider, deleteLLMProvider, testLLMProvider,
 } from '../../api/admin';
 import type { LLMProvider, LLMProviderCreate, LLMProviderUpdate } from '../../types/admin';
+import { flexRowGap1 } from '@/styles/sxUtils';
+
 
 const emptyForm: LLMProviderCreate = {
   provider: '',
@@ -320,7 +322,7 @@ export default function LLMProvidersPage() {
                         </TableCell>
                         <TableCell>{p.is_default ? <Chip label="默认" color="primary" size="small" /> : '—'}</TableCell>
                         <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={flexRowGap1}>
                             <code style={{ fontSize: 12 }}>{p.api_key_masked}</code>
                             {testingId === testKey ? (
                               <CircularProgress size={16} />

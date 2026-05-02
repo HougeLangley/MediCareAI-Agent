@@ -21,6 +21,8 @@ import FlagIcon from '@mui/icons-material/Flag';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import { listCarePlans, ackTask } from '../../api/patient';
 import type { CarePlan } from '../../api/patient';
+import { flexRowGap05Mb05, pageHeader } from '@/styles/sxUtils';
+
 
 const warmText = '#5C4033';
 const warmPrimary = '#E8956A';
@@ -177,7 +179,7 @@ export default function FollowUpPage() {
     <Box sx={{ minHeight: '100vh', bgcolor: warmBg, pb: 6 }}>
       <Container maxWidth="md">
         {/* Header */}
-        <Box sx={{ pt: 3, pb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={pageHeader}>
           <IconButton onClick={() => navigate('/chat')} sx={{ color: warmText }}>
             <ArrowBackIosNewIcon />
           </IconButton>
@@ -287,7 +289,7 @@ export default function FollowUpPage() {
 
                   {/* Goals */}
                   <Box sx={{ mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                    <Box sx={flexRowGap05Mb05}>
                       <FlagIcon sx={{ fontSize: 16, color: warmPrimary }} />
                       <Typography variant="subtitle2" sx={{ color: warmText, fontWeight: 600 }}>
                         目标

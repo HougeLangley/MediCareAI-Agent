@@ -20,6 +20,8 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import MessageOutlined from '@mui/icons-material/MessageOutlined';
 import { listPatients } from '../../api/doctor';
 import type { PatientSummary } from '../../api/doctor';
+import { flexRowBetweenMb2 } from '@/styles/sxUtils';
+
 
 type FilterTag = 'all' | 'pending' | 'followup' | 'new' | 'high';
 
@@ -211,7 +213,7 @@ export default function DoctorCases() {
 
       {/* 患者列表 */}
       <Box sx={{ flexGrow: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Box sx={flexRowBetweenMb2}>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             共 {filteredPatients.length} 位患者
           </Typography>

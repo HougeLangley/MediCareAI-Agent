@@ -22,6 +22,8 @@ import type {
   SmtpSecurity,
 } from '../../types/admin';
 import {
+import { flexRowBetweenMb2, flexRowGap1Mb1 } from '@/styles/sxUtils';
+
   listEmailConfigs, createEmailConfig, updateEmailConfig, deleteEmailConfig,
   testEmailConfig, setDefaultEmailConfig,
   listEmailTemplates, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate,
@@ -214,7 +216,7 @@ export default function EmailManagementPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={flexRowBetweenMb2}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>
           <EmailIcon sx={{ mr: 1, verticalAlign: 'middle', color: '#1565C0' }} />
           邮件管理
@@ -378,7 +380,7 @@ export default function EmailManagementPage() {
               <Grid size={{ xs: 12, md: 6, lg: 4 }} key={preset.id}>
                 <Card variant="outlined">
                   <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <Box sx={flexRowGap1Mb1}>
                       <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 600 }}>{preset.icon} {preset.name}</Typography>
                       <Chip label={preset.category_label} size="small" variant="outlined" />
                     </Box>

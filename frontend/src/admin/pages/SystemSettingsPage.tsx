@@ -8,6 +8,8 @@ import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
 import { listSettings, createSetting, batchUpdateSettings } from '../../api/admin';
 import type { SystemSetting, SystemSettingCreate } from '../../types/admin';
+import { flexRowBetweenMb2, flexRowGap05 } from '@/styles/sxUtils';
+
 
 const CATEGORIES: Record<string, { label: string; color: string }> = {
   general: { label: '⚙️ 通用', color: '#64748B' },
@@ -255,7 +257,7 @@ export default function SystemSettingsPage() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={flexRowBetweenMb2}>
         <Typography variant="h5" sx={{ fontWeight: 600 }}>
           系统设置
         </Typography>
@@ -298,7 +300,7 @@ export default function SystemSettingsPage() {
               key={cat}
               value={cat}
               label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box sx={flexRowGap05}>
                   <Chip
                     size="small"
                     sx={{

@@ -13,6 +13,8 @@ import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import type { NotificationItem, NotificationDetail, NotificationType, NotificationPriority, NotificationUnreadCount } from '../../types/admin';
 import {
+import { flexRowBetweenMb2 } from '@/styles/sxUtils';
+
   listNotifications, getUnreadCount, getNotification, createNotification,
   broadcastNotification, markNotificationRead, deleteNotification,
 } from '../../api/admin';
@@ -156,7 +158,7 @@ export default function NotificationsPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={flexRowBetweenMb2}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>
           <NotificationsIcon sx={{ mr: 1, verticalAlign: 'middle', color: '#1565C0' }} />
           站内信管理

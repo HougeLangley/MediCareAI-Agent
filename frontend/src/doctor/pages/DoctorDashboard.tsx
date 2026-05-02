@@ -19,6 +19,8 @@ import ShareIcon from '@mui/icons-material/Share';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import { fetchDashboardStats, listPatients } from '../../api/doctor';
 import type { DoctorStats, PatientSummary } from '../../api/doctor';
+import { cardStyle } from '@/styles/sxUtils';
+
 
 const demoStats: DoctorStats = {
   pending_count: 12,
@@ -146,8 +148,8 @@ export default function DoctorDashboard() {
       <Grid container spacing={2} sx={{ mb: 4 }}>
         {statMeta.map((s) => (
           <Grid size={{ xs: 12, sm: 6, md: 3 }} key={s.key}>
-            <Card sx={{ borderRadius: 3, boxShadow: '0 1px 4px rgba(38,50,56,0.08)' }}>
-              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Card sx={cardStyle}>
+              <CardContent sx={flexRowGap2}>
                 <Box
                   sx={{
                     width: 48,
@@ -181,7 +183,7 @@ export default function DoctorDashboard() {
       </Grid>
 
       {/* 患者列表概览 */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+      <Box sx={flexRowBetweenMb2}>
         <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
           最近患者
         </Typography>
@@ -217,7 +219,7 @@ export default function DoctorDashboard() {
                       {p.name[0]}
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <Box sx={flexRowGap1Mb05}>
                         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                           {p.name}
                         </Typography>

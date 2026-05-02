@@ -16,6 +16,8 @@ import Sidebar from './Sidebar';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import GuestBanner from './GuestBanner';
+import { flexRowGap05 } from '@/styles/sxUtils';
+
 
 const QUICK_REPLIES = [
   '头疼还发烧',
@@ -195,7 +197,7 @@ export default function ChatPage() {
             <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 500 }}>
               {sessions.find((s) => s.id === currentSessionId)?.title || '智能医疗助手'}
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={flexRowGap05}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main', mr: 0.5 }} />
               <Typography variant="caption" color="text.secondary">在线</Typography>
             </Box>

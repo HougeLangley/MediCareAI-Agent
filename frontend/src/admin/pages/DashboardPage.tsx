@@ -5,12 +5,14 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { fetchDashboardStats } from '../../api/admin';
 import type { DashboardStats } from '../../types/admin';
+import { flexRowBetween } from '@/styles/sxUtils';
+
 
 function StatCard({ title, value, icon, color }: { title: string; value: number | string; icon: React.ReactNode; color: string }) {
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={flexRowBetween}>
           <Box>
             <Typography color="text.secondary" variant="body2" sx={{ mb: 1 }}>
               {title}

@@ -27,6 +27,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import { getProfile, updateProfile } from '../../api/patient';
 import type { PatientProfile } from '../../api/patient';
+import { flexRowBetweenMb2, pageHeader } from '@/styles/sxUtils';
+
 
 const warmText = '#5C4033';
 const warmPrimary = '#E8956A';
@@ -175,7 +177,7 @@ export default function HealthProfilePage() {
     <Box sx={{ minHeight: '100vh', bgcolor: warmBg, pb: 6 }}>
       <Container maxWidth="md">
         {/* Header */}
-        <Box sx={{ pt: 3, pb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={pageHeader}>
           <IconButton onClick={() => navigate('/chat')} sx={{ color: warmText }}>
             <ArrowBackIosNewIcon />
           </IconButton>
@@ -390,7 +392,7 @@ export default function HealthProfilePage() {
         {/* 用药记录 */}
         <Card sx={{ borderRadius: 3 }}>
           <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Box sx={flexRowBetweenMb2}>
               <Typography variant="h6" sx={{ color: warmText, fontWeight: 600 }}>
                 用药记录
               </Typography>

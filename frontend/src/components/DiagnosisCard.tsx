@@ -19,6 +19,8 @@ import ScienceIcon from '@mui/icons-material/Science';
 import MedicationIcon from '@mui/icons-material/Medication';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import type { DiagnosisReport } from '../types/agent';
+import { flexRowGap1, flexRowGap1Mb05 } from '@/styles/sxUtils';
+
 
 interface Props { report: DiagnosisReport; }
 
@@ -38,7 +40,7 @@ export default function DiagnosisCard({ report }: Props) {
     <Card sx={{ mt: 1.5, borderLeft: '4px solid #E8956A', background: '#FFF8F0', '&:hover': { boxShadow: '0 4px 16px rgba(92,64,51,0.1)' }, transition: 'box-shadow 0.2s' }}>
       <CardContent sx={{ pb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={flexRowGap1}>
             <LocalHospitalIcon sx={{ color: 'primary.main', fontSize: 20 }} />
             <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>诊断报告</Typography>
           </Box>
@@ -81,7 +83,7 @@ export default function DiagnosisCard({ report }: Props) {
 
           {report.recommended_exams && report.recommended_exams.length > 0 && (
             <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <Box sx={flexRowGap1Mb05}>
                 <ScienceIcon sx={{ color: 'text.secondary', fontSize: 16 }} />
                 <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>建议检查</Typography>
               </Box>
@@ -95,7 +97,7 @@ export default function DiagnosisCard({ report }: Props) {
 
           {report.treatment_suggestions && report.treatment_suggestions.length > 0 && (
             <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <Box sx={flexRowGap1Mb05}>
                 <MedicationIcon sx={{ color: 'text.secondary', fontSize: 16 }} />
                 <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>治疗建议</Typography>
               </Box>
@@ -109,7 +111,7 @@ export default function DiagnosisCard({ report }: Props) {
 
           {report.follow_up_plan && (
             <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <Box sx={flexRowGap1Mb05}>
                 <EventNoteIcon sx={{ color: 'text.secondary', fontSize: 16 }} />
                 <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>随访计划</Typography>
               </Box>
