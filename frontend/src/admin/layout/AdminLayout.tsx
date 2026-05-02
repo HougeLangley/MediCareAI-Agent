@@ -30,7 +30,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { logout, getMe } from '../../api/admin';
 import AdminLoginPage from '../pages/AdminLoginPage';
 import ChangePasswordPage from '../pages/ChangePasswordPage';
-import { pageCenter } from '@/styles/sxUtils';
+import { pageCenter } from '../../styles/sxUtils';
 
 
 const DRAWER_WIDTH = 240;

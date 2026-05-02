@@ -11,7 +11,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import SearchIcon from '@mui/icons-material/Search';
 import { listDoctors, verifyDoctor, updateUser } from '../../api/admin';
 import type { UserItem, UserAdminUpdate } from '../../types/admin';
-import { flexRowBetweenMb2 } from '@/styles/sxUtils';
+import { flexRowBetweenMb2 } from '../../styles/sxUtils';
 
 
 const STATUS_TABS = [

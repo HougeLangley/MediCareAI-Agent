@@ -12,7 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import type { NotificationItem, NotificationDetail, NotificationType, NotificationPriority, NotificationUnreadCount } from '../../types/admin';
-import { flexRowBetweenMb2 } from '@/styles/sxUtils';
+import { flexRowBetweenMb2 } from '../../styles/sxUtils';
 import {
   listNotifications, getUnreadCount, getNotification, createNotification,
   broadcastNotification, markNotificationRead, deleteNotification,

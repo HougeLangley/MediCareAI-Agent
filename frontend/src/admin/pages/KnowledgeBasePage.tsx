@@ -11,7 +11,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import type { DocumentItem, DocumentCreate, DocumentUpdate, DocumentType } from '../../types/admin';
-import { flexRowBetweenMb2 } from '@/styles/sxUtils';
+import { flexRowBetweenMb2 } from '../../styles/sxUtils';
 import {
   listDocuments, createDocument, updateDocument, deleteDocument, toggleDocumentActive,
 } from '../../api/admin';

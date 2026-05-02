@@ -20,7 +20,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import MessageOutlined from '@mui/icons-material/MessageOutlined';
 import { listPatients } from '../../api/doctor';
 import type { PatientSummary } from '../../api/doctor';
-import { flexRowBetweenMb2 } from '@/styles/sxUtils';
+import { flexRowBetweenMb2 } from '../../styles/sxUtils';
 
 
 type FilterTag = 'all' | 'pending' | 'followup' | 'new' | 'high';

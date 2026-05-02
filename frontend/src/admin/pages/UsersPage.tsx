@@ -9,7 +9,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SearchIcon from '@mui/icons-material/Search';
 import { listUsers, updateUser } from '../../api/admin';
 import type { UserItem, UserAdminUpdate } from '../../types/admin';
-import { flexRowBetweenMb2 } from '@/styles/sxUtils';
+import { flexRowBetweenMb2 } from '../../styles/sxUtils';
 
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {

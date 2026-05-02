@@ -16,7 +16,7 @@ import Sidebar from './Sidebar';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import GuestBanner from './GuestBanner';
-import { flexRowGap05 } from '@/styles/sxUtils';
+import { flexRowGap05 } from '../styles/sxUtils';
 
 
 const QUICK_REPLIES = [

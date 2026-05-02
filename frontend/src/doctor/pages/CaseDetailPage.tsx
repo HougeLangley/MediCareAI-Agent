@@ -37,7 +37,7 @@ import {
 } from '@mui/icons-material';
 import { getCaseDetail, addComment, sendPlanInstruction } from '../../api/doctor';
 import type { CaseDetail } from '../../api/doctor';
-import { flexRowGap05Mb05, flexRowGap1, flexRowGap15, flexRowGap1Mb1 } from '@/styles/sxUtils';
+import { flexRowGap05Mb05, flexRowGap1, flexRowGap15, flexRowGap1Mb1 } from '../../styles/sxUtils';
 
 
 interface PatientInfo {

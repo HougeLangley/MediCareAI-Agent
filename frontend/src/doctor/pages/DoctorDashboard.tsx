@@ -19,7 +19,7 @@ import ShareIcon from '@mui/icons-material/Share';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import { fetchDashboardStats, listPatients } from '../../api/doctor';
 import type { DoctorStats, PatientSummary } from '../../api/doctor';
-import { cardStyle } from '@/styles/sxUtils';
+import { cardStyle } from '../../styles/sxUtils';
 
 
 const demoStats: DoctorStats = {

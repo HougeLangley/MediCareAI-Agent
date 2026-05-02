@@ -19,7 +19,7 @@ import ScienceIcon from '@mui/icons-material/Science';
 import MedicationIcon from '@mui/icons-material/Medication';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import type { DiagnosisReport } from '../types/agent';
-import { flexRowGap1, flexRowGap1Mb05 } from '@/styles/sxUtils';
+import { flexRowGap1, flexRowGap1Mb05 } from '../styles/sxUtils';
 
 
 interface Props { report: DiagnosisReport; }

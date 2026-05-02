@@ -8,7 +8,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
 import { listSettings, createSetting, batchUpdateSettings } from '../../api/admin';
 import type { SystemSetting, SystemSettingCreate } from '../../types/admin';
-import { flexRowBetweenMb2, flexRowGap05 } from '@/styles/sxUtils';
+import { flexRowBetweenMb2, flexRowGap05 } from '../../styles/sxUtils';
 
 
 const CATEGORIES: Record<string, { label: string; color: string }> = {

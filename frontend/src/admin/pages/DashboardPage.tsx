@@ -5,7 +5,7 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { fetchDashboardStats } from '../../api/admin';
 import type { DashboardStats } from '../../types/admin';
-import { flexRowBetween } from '@/styles/sxUtils';
+import { flexRowBetween } from '../../styles/sxUtils';
 
 
 function StatCard({ title, value, icon, color }: { title: string; value: number | string; icon: React.ReactNode; color: string }) {

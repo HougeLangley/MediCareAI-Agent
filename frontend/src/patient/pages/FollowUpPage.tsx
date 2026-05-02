@@ -21,7 +21,7 @@ import FlagIcon from '@mui/icons-material/Flag';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import { listCarePlans, ackTask } from '../../api/patient';
 import type { CarePlan } from '../../api/patient';
-import { flexRowGap05Mb05, pageHeader } from '@/styles/sxUtils';
+import { flexRowGap05Mb05, pageHeader } from '../../styles/sxUtils';
 
 
 const warmText = '#5C4033';

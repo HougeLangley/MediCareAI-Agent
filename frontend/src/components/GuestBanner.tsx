@@ -2,7 +2,7 @@ import { Box, Typography, Button, Chip, LinearProgress } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import type { GuestStatus } from '../types/agent';
-import { flexRowGap15 } from '@/styles/sxUtils';
+import { flexRowGap15 } from '../styles/sxUtils';
 
 
 interface Props {

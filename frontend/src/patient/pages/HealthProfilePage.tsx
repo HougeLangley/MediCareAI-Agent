@@ -27,7 +27,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import { getProfile, updateProfile } from '../../api/patient';
 import type { PatientProfile } from '../../api/patient';
-import { flexRowBetweenMb2, pageHeader } from '@/styles/sxUtils';
+import { flexRowBetweenMb2, pageHeader } from '../../styles/sxUtils';
 
 
 const warmText = '#5C4033';

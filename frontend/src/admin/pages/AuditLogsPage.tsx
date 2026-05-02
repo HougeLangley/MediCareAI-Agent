@@ -12,7 +12,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import type { AuditLogItem, AuditLogStats, AuditActionType, AuditResourceType } from '../../types/admin';
 import { listAuditLogs, getAuditLogStats } from '../../api/admin';
-import { flexRowBetweenMb2 } from '@/styles/sxUtils';
+import { flexRowBetweenMb2 } from '../../styles/sxUtils';
 
 
 const ACTION_LABELS: Record<string, string> = {

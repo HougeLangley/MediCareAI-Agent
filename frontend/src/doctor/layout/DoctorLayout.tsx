@@ -27,7 +27,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import SwitchAccountIcon from '@mui/icons-material/SwitchAccount';
 import { logout, getMe } from '../../api/auth';
 import type { UserInfo } from '../../api/auth';
-import { flexRowGap1, flexRowGap2, pageCenter } from '@/styles/sxUtils';
+import { flexRowGap1, flexRowGap2, pageCenter } from '../../styles/sxUtils';
 
 
 const DRAWER_WIDTH = 240;

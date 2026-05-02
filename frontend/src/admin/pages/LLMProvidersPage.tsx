@@ -16,7 +16,7 @@ import {
   listLLMProviders, createLLMProvider, updateLLMProvider, deleteLLMProvider, testLLMProvider,
 } from '../../api/admin';
 import type { LLMProvider, LLMProviderCreate, LLMProviderUpdate } from '../../types/admin';
-import { flexRowGap1 } from '@/styles/sxUtils';
+import { flexRowGap1 } from '../../styles/sxUtils';
 
 
 const emptyForm: LLMProviderCreate = {

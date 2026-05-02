@@ -11,7 +11,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import HistoryIcon from '@mui/icons-material/History';
 import type { ReviewQueueItem, DocumentReviewLog, ReviewAction } from '../../types/admin';
 import { listReviewQueue, reviewDocument, getDocumentReviewHistory } from '../../api/admin';
-import { flexRowBetween, flexRowBetweenMb2, flexRowGap1 } from '@/styles/sxUtils';
+import { flexRowBetween, flexRowBetweenMb2, flexRowGap1 } from '../../styles/sxUtils';
 
 
 const REVIEW_STATUS_LABELS: Record<string, { label: string; color: 'success' | 'warning' | 'error' | 'info' | 'default' }> = {
