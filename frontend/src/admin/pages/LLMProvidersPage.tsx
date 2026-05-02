@@ -17,6 +17,7 @@ import {
 } from '../../api/admin';
 import type { LLMProvider, LLMProviderCreate, LLMProviderUpdate } from '../../types/admin';
 import { flexRowGap1 } from '../../styles/sxUtils';
+import { PROVIDER_DOMAINS } from '../../config/providers';
 
 
 const emptyForm: LLMProviderCreate = {
@@ -53,22 +54,22 @@ interface ProviderGuide {
 const PROVIDER_GUIDES: Record<string, ProviderGuide> = {
   moonshot: {
     name: 'Moonshot AI (Kimi)',
-    baseUrl: 'https://api.moonshot.cn/v1',
+    baseUrl: `${PROVIDER_DOMAINS.moonshot.api}/v1`,
     models: [
       { id: 'kimi-2.5', label: 'kimi-2.5（推荐，长上下文通用模型）', type: 'diagnosis' },
       { id: 'kimi-2.6', label: 'kimi-2.6（推荐，最新旗舰模型）', type: 'diagnosis' },
     ],
     notes: [
       '支持 OpenAI 兼容 API 格式',
-      'Base URL: https://api.moonshot.cn/v1',
-      'API Key 在 https://platform.moonshot.cn 申请',
+      `Base URL: ${PROVIDER_DOMAINS.moonshot.api}/v1`,
+      `API Key 在 ${PROVIDER_DOMAINS.moonshot.platform} 申请`,
       '默认流量限制 60 RPM',
       '如需旧版 moonshot-v1 系列模型可手动输入',
     ],
   },
   opencode: {
     name: 'OpenCode Go',
-    baseUrl: 'https://opencode.ai/zen/go/v1',
+    baseUrl: `${PROVIDER_DOMAINS.opencode.api}/zen/go/v1`,
     models: [
       { id: 'kimi-k2.5', label: 'kimi-k2.5（Kimi K2.5，长上下文通用）', type: 'diagnosis' },
       { id: 'kimi-k2.6', label: 'kimi-k2.6（Kimi K2.6，旗舰模型）', type: 'diagnosis' },
@@ -85,15 +86,15 @@ const PROVIDER_GUIDES: Record<string, ProviderGuide> = {
     ],
     notes: [
       '支持 OpenAI 兼容 API 格式',
-      'Base URL: https://opencode.ai/zen/go/v1',
-      'API Key 在 https://opencode.ai/zen 订阅后获取',
+      `Base URL: ${PROVIDER_DOMAINS.opencode.api}/zen/go/v1`,
+      `API Key 在 ${PROVIDER_DOMAINS.opencode.zen} 订阅后获取`,
       '首月 $5，之后 $10/月',
       '注意：MiniMax M2.5/M2.7 使用 Anthropic 格式，未包含',
     ],
   },
   zhipu: {
     name: '智谱 AI',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4/',
+    baseUrl: `${PROVIDER_DOMAINS.zhipu.api}/api/paas/v4/`,
     models: [
       { id: 'glm-4', label: 'glm-4（旗舰模型，综合能力最强）', type: 'diagnosis' },
       { id: 'glm-4v', label: 'glm-4v（多模态，支持图片理解）', type: 'multimodal' },
@@ -105,7 +106,7 @@ const PROVIDER_GUIDES: Record<string, ProviderGuide> = {
   },
   jina: {
     name: 'Jina AI',
-    baseUrl: 'https://api.jina.ai/v1',
+    baseUrl: `${PROVIDER_DOMAINS.jina.api}/v1`,
     models: [
       { id: 'jina-reranker-v2-base-multilingual', label: 'jina-reranker-v2-base-multilingual（多语言重排序）', type: 'reranking' },
       { id: 'jina-embeddings-v3', label: 'jina-embeddings-v3（向量嵌入）', type: 'embedding' },
@@ -129,7 +130,7 @@ const PROVIDER_GUIDES: Record<string, ProviderGuide> = {
   },
   'custom-anthropic': {
     name: '自定义（Anthropic 兼容）',
-    baseUrl: 'https://api.anthropic.com/v1',
+    baseUrl: `${PROVIDER_DOMAINS.anthropic.api}/v1`,
     models: [
       { id: 'claude-3-5-sonnet-20241022', label: 'claude-3-5-sonnet（Anthropic 多模态）', type: 'diagnosis' },
       { id: 'claude-3-opus-20240229', label: 'claude-3-opus（Anthropic 最强推理）', type: 'diagnosis' },

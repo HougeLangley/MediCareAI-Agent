@@ -33,6 +33,15 @@ logger = logging.getLogger(__name__)
 # Simple {{variable}} regex
 _VAR_PATTERN = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
+# Provider help links — centralised to avoid hard-coding domains in presets
+_EMAIL_PROVIDER_LINKS: dict[str, str | None] = {
+    "qq": "https://mail.qq.com/",
+    "163": "https://mail.163.com/",
+    "gmail": "https://myaccount.google.com/apppasswords",
+    "outlook": "https://outlook.live.com/",
+    "custom": None,
+}
+
 
 # =============================================================================
 # Provider Presets (baked into code — no external JSON file)
@@ -47,7 +56,7 @@ EMAIL_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
         "description": "腾讯 QQ 邮箱，使用授权码代替密码",
         "smtp": {"host": "smtp.qq.com", "port": 587, "security": "starttls"},
         "help_text": "请在 QQ 邮箱设置 → 账号 → 开启 SMTP 服务，生成授权码后填入密码字段",
-        "help_link": "https://mail.qq.com/",
+        "help_link": _EMAIL_PROVIDER_LINKS["qq"],
     },
     "163": {
         "name": "163 网易邮箱",
@@ -57,7 +66,7 @@ EMAIL_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
         "description": "网易 163 邮箱，使用授权码代替密码",
         "smtp": {"host": "smtp.163.com", "port": 465, "security": "ssl"},
         "help_text": "请在 163 邮箱设置 → POP3/SMTP/IMAP 中开启服务并获取授权码",
-        "help_link": "https://mail.163.com/",
+        "help_link": _EMAIL_PROVIDER_LINKS["163"],
     },
     "gmail": {
         "name": "Gmail",
@@ -67,7 +76,7 @@ EMAIL_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
         "description": "Google Gmail，需开启应用定密码",
         "smtp": {"host": "smtp.gmail.com", "port": 587, "security": "starttls"},
         "help_text": "请在 Google 账户 → 安全性 → 开启应用定密码（App Password）",
-        "help_link": "https://myaccount.google.com/apppasswords",
+        "help_link": _EMAIL_PROVIDER_LINKS["gmail"],
     },
     "outlook": {
         "name": "Outlook / Hotmail",
@@ -77,7 +86,7 @@ EMAIL_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
         "description": "Microsoft Outlook / Hotmail",
         "smtp": {"host": "smtp.office365.com", "port": 587, "security": "starttls"},
         "help_text": "使用您的 Microsoft 账户密码登录，如启用了双重验证请使用应用定密码",
-        "help_link": "https://outlook.live.com/",
+        "help_link": _EMAIL_PROVIDER_LINKS["outlook"],
     },
     "custom": {
         "name": "自定义 SMTP",
@@ -87,7 +96,7 @@ EMAIL_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
         "description": "自定义 SMTP 服务器配置",
         "smtp": {"host": "", "port": 587, "security": "starttls"},
         "help_text": "请填入您的 SMTP 服务器地址和端口号",
-        "help_link": None,
+        "help_link": _EMAIL_PROVIDER_LINKS["custom"],
     },
 }
 
