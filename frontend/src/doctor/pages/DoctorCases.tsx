@@ -17,7 +17,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import MessageOutlined from '@mui/icons-material/MessageOutlined';
 import { listPatients, PatientSummary } from '../../api/doctor';
 
 type FilterTag = 'all' | 'pending' | 'followup' | 'new' | 'high';
