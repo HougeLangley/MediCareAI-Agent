@@ -281,7 +281,7 @@ export default function HealthProfilePage() {
             <Typography variant="h6" sx={{ color: warmText, mb: 2, fontWeight: 600 }}>
               过敏史
             </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
               {(display.allergies || []).map((allergy, idx) => (
                 <Chip
                   key={`${allergy}-${idx}`}
@@ -337,7 +337,7 @@ export default function HealthProfilePage() {
             <Typography variant="h6" sx={{ color: warmText, mb: 2, fontWeight: 600 }}>
               慢性病
             </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
               {(display.chronic_diseases || []).map((disease, idx) => (
                 <Chip
                   key={`${disease}-${idx}`}
