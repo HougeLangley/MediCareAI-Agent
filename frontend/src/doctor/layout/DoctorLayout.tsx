@@ -25,7 +25,8 @@ import MessageIcon from '@mui/icons-material/Message';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SwitchAccountIcon from '@mui/icons-material/SwitchAccount';
-import { logout, getMe, UserInfo } from '../../api/auth';
+import { logout, getMe } from '../../api/auth';
+import type { UserInfo } from '../../api/auth';
 
 const DRAWER_WIDTH = 240;
 
