@@ -19,7 +19,8 @@ import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import FlagIcon from '@mui/icons-material/Flag';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
-import { listCarePlans, ackTask, CarePlan } from '../../api/patient';
+import { listCarePlans, ackTask } from '../../api/patient';
+import type { CarePlan } from '../../api/patient';
 
 const warmText = '#5C4033';
 const warmPrimary = '#E8956A';

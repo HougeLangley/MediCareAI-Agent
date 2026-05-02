@@ -17,7 +17,8 @@ import MessageIcon from '@mui/icons-material/Message';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 import ShareIcon from '@mui/icons-material/Share';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import { fetchDashboardStats, listPatients, DoctorStats, PatientSummary } from '../../api/doctor';
+import { fetchDashboardStats, listPatients } from '../../api/doctor';
+import type { DoctorStats, PatientSummary } from '../../api/doctor';
 
 const demoStats: DoctorStats = {
   pending_count: 12,

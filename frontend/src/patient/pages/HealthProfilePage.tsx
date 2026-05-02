@@ -25,7 +25,8 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
-import { getProfile, updateProfile, PatientProfile } from '../../api/patient';
+import { getProfile, updateProfile } from '../../api/patient';
+import type { PatientProfile } from '../../api/patient';
 
 const warmText = '#5C4033';
 const warmPrimary = '#E8956A';
