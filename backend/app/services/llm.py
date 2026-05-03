@@ -58,9 +58,9 @@ async def _get_provider_config(
                 LLMProviderConfig.provider == provider,
                 LLMProviderConfig.platform == platform.strip().lower(),
                 LLMProviderConfig.is_active == True,
-            )
+            ).limit(1)
         )
-        config = result.scalar_one_or_none()
+        config = result.scalars().first()
         if config:
             decrypted_key = decrypt_value(config.api_key_encrypted)
             return {
@@ -75,9 +75,9 @@ async def _get_provider_config(
             LLMProviderConfig.provider == provider,
             LLMProviderConfig.platform.is_(None),
             LLMProviderConfig.is_active == True,
-        )
+        ).limit(1)
     )
-    config = result.scalar_one_or_none()
+    config = result.scalars().first()
     if config:
         decrypted_key = decrypt_value(config.api_key_encrypted)
         return {
