@@ -7,7 +7,7 @@ Requires admin role.
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1022,29 +1022,66 @@ async def get_document(
 
 @router.post("/knowledge", response_model=DocumentDetail, status_code=status.HTTP_201_CREATED)
 async def create_document_admin(
-    data: DocumentAdminCreate,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    title: str = Form(..., min_length=1, max_length=500),
+    content: str | None = Form(None, min_length=10),
+    doc_type: str = Form(default="platform_guideline"),
+    source_url: str | None = Form(None, max_length=1000),
+    department: str | None = Form(None, max_length=100),
+    disease_tags: list[str] | None = Form(None),
+    drug_name: str | None = Form(None, max_length=200),
+    language: str = Form(default="zh"),
+    is_featured: bool = Form(default=False),
+    file: UploadFile | None = File(None),
 ) -> Document:
     """Create a new knowledge document (admin only).
 
+    Supports two modes:
+    1. Text mode: provide title + content directly.
+    2. File upload mode: upload a PDF, Word (.docx), or plain text file.
+       The file content is auto-extracted and chunked.
+
     Automatically chunks and indexes the content.
     """
+    from app.services.document_parser import parse_uploaded_file
     from app.services.rag import RAGService
+
+    # Determine content: from uploaded file or from text field
+    final_content: str
+    if file is not None:
+        parsed_text, file_type = await parse_uploaded_file(file)
+        final_content = parsed_text
+        # If title is generic/empty and file has a meaningful name, use filename as title
+        if not title or title.strip() in ("", "新建文档", "Untitled"):
+            # Remove extension for title
+            fname = file.filename or "Uploaded Document"
+            for ext in (".pdf", ".docx", ".txt"):
+                if fname.lower().endswith(ext):
+                    fname = fname[: -len(ext)]
+                    break
+            title = fname or title
+    else:
+        if not content or not content.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Either 'content' text or a 'file' upload is required",
+            )
+        final_content = content
 
     service = RAGService(db)
     doc = await service.create_document(
-        title=data.title,
-        content=data.content,
-        doc_type=data.doc_type,
-        source_url=data.source_url,
-        department=data.department,
-        disease_tags=data.disease_tags,
-        drug_name=data.drug_name,
-        language=data.language,
+        title=title,
+        content=final_content,
+        doc_type=doc_type,
+        source_url=source_url,
+        department=department,
+        disease_tags=disease_tags or [],
+        drug_name=drug_name,
+        language=language,
     )
     # Update admin-specific fields
-    doc.is_featured = data.is_featured
+    doc.is_featured = is_featured
     doc.source_type = "admin_upload"
     await db.commit()
     await db.refresh(doc)
@@ -1058,7 +1095,7 @@ async def create_document_admin(
         user_role=current_user.role.value if current_user else None,
         resource_type=AuditResourceType.DOCUMENT,
         resource_id=str(doc.id),
-        details={"title": doc.title, "doc_type": doc.doc_type.value},
+        details={"title": doc.title, "doc_type": doc.doc_type.value, "has_file": file is not None},
     )
     await db.commit()
 

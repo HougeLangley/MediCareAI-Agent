@@ -290,11 +290,25 @@ export async function getDocument(id: string): Promise<DocumentDetail> {
   return handleResponse<DocumentDetail>(res);
 }
 
-export async function createDocument(data: DocumentCreate): Promise<DocumentDetail> {
+export async function createDocument(data: DocumentCreate & { file?: File }): Promise<DocumentDetail> {
+  const formData = new FormData();
+  formData.append('title', data.title);
+  if (data.content) formData.append('content', data.content);
+  formData.append('doc_type', data.doc_type);
+  if (data.source_url) formData.append('source_url', data.source_url);
+  if (data.department) formData.append('department', data.department);
+  if (data.disease_tags?.length) {
+    data.disease_tags.forEach(tag => formData.append('disease_tags', tag));
+  }
+  if (data.drug_name) formData.append('drug_name', data.drug_name);
+  if (data.language) formData.append('language', data.language);
+  if (data.is_featured) formData.append('is_featured', String(data.is_featured));
+  if (data.file) formData.append('file', data.file);
+
   const res = await fetch(`${API_BASE}/admin/knowledge`, {
     method: 'POST',
-    headers: jsonHeaders(),
-    body: JSON.stringify(data),
+    headers: authHeaders(), // No Content-Type for FormData — browser sets it
+    body: formData,
   });
   return handleResponse<DocumentDetail>(res);
 }

@@ -46,6 +46,7 @@ export default function KnowledgeBasePage() {
     source_url: null, department: null, disease_tags: [], drug_name: null,
     language: 'zh', is_featured: false,
   });
+  const [file, setFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -89,6 +90,7 @@ export default function KnowledgeBasePage() {
       source_url: null, department: null, disease_tags: [], drug_name: null,
       language: 'zh', is_featured: false,
     });
+    setFile(null);
     setFormError(null);
     setDialogOpen(true);
   };
@@ -106,13 +108,23 @@ export default function KnowledgeBasePage() {
       language: 'zh',
       is_featured: doc.is_featured,
     });
+    setFile(null);
     setFormError(null);
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!form.title.trim() || !form.content.trim()) {
-      setFormError('标题和内容不能为空');
+    // Validation: need title + (content or file)
+    if (!form.title.trim()) {
+      setFormError('标题不能为空');
+      return;
+    }
+    if (!editingDoc && !file && !form.content.trim()) {
+      setFormError('请上传文件或填写内容');
+      return;
+    }
+    if (editingDoc && !form.content.trim()) {
+      setFormError('内容不能为空');
       return;
     }
     setSaving(true);
@@ -129,7 +141,7 @@ export default function KnowledgeBasePage() {
         if (form.is_featured !== undefined) update.is_featured = form.is_featured;
         await updateDocument(editingDoc.id, update);
       } else {
-        await createDocument(form);
+        await createDocument({ ...form, file: file || undefined });
       }
       setDialogOpen(false);
       fetchDocs();
@@ -319,11 +331,51 @@ export default function KnowledgeBasePage() {
                 label="设为精选"
               />
             </Grid>
+            {!editingDoc && (
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 1, p: 2, textAlign: 'center' }}>
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    style={{ display: 'none' }}
+                    id="doc-upload-input"
+                    onChange={e => {
+                      const f = e.target.files?.[0] || null;
+                      setFile(f);
+                      if (f && !form.title.trim()) {
+                        // Auto-fill title from filename
+                        const name = f.name.replace(/\.(pdf|docx|txt)$/i, '');
+                        setForm(prev => ({ ...prev, title: name }));
+                      }
+                    }}
+                  />
+                  <label htmlFor="doc-upload-input">
+                    <Button component="span" variant="outlined" size="small">
+                      {file ? '更换文件' : '上传文件'}
+                    </Button>
+                  </label>
+                  {file ? (
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      已选择: <strong>{file.name}</strong> ({(file.size / 1024).toFixed(1)} KB)
+                      <br />
+                      <Typography component="span" variant="caption" color="text.secondary">
+                        文件内容将自动解析并分块索引
+                      </Typography>
+                    </Typography>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                      支持 PDF、Word (.docx)、纯文本 (.txt)
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+            )}
             <Grid size={{ xs: 12 }}>
-              <TextField fullWidth multiline rows={8} label="内容（支持 Markdown）"
+              <TextField fullWidth multiline rows={8} label={file ? '内容（可选补充）' : '内容（支持 Markdown）'}
                 value={form.content}
                 onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-                placeholder="请输入文档内容，系统将自动分块并建立向量索引..."
+                placeholder={file ? '文件已上传，可在此补充额外内容...' : '请输入文档内容，系统将自动分块并建立向量索引...'}
+                disabled={!!file && !editingDoc}
               />
             </Grid>
           </Grid>
