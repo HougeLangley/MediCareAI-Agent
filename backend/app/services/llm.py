@@ -111,9 +111,9 @@ async def _get_default_provider(
                 LLMProviderConfig.platform == platform.strip().lower(),
                 LLMProviderConfig.is_active == True,
                 LLMProviderConfig.model_type == model_type,
-            )
+            ).limit(1)
         )
-        config = result.scalar_one_or_none()
+        config = result.scalars().first()
         if config:
             return config.provider
 
@@ -123,9 +123,9 @@ async def _get_default_provider(
             LLMProviderConfig.platform.is_(None),
             LLMProviderConfig.is_active == True,
             LLMProviderConfig.model_type == model_type,
-        )
+        ).limit(1)
     )
-    config = result.scalar_one_or_none()
+    config = result.scalars().first()
     if config:
         return config.provider
 
@@ -135,7 +135,7 @@ async def _get_default_provider(
             LLMProviderConfig.model_type == model_type,
         ).limit(1)
     )
-    config = result.scalar_one_or_none()
+    config = result.scalars().first()
     if config:
         return config.provider
 
