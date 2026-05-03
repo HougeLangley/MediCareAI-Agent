@@ -15,104 +15,75 @@ search:
   formats:
     - html
     - json
-  # Remove suspicious content but keep medical-relevant results
-  suspicious_content: false
 
 server:
-  # Bind to all interfaces inside Docker
   bind_address: "0.0.0.0"
   port: 8080
-  # Secret is injected via SEARXNG_SECRET env var
   secret_key: "!ultrasecretkey!"
-  # Limit request body size
   limiter: false
-  # Public URL (used in result links) — leave empty, results are consumed internally
   image_proxy: false
-  method: "GET"
 
-# Redis/Valkey connection (REQUIRED for JSON API)
 redis:
   url: redis://valkey:6379/0
 
-# Ulimit settings
 ui:
-  static_use_hash: true
   default_theme: simple
   theme_args:
     simple_style: auto
 
-# Enabled search engines — medical and general
 engines:
   - name: google
     engine: google
     shortcut: g
-    categories: general
+    categories: [general]
     enabled: true
 
   - name: bing
     engine: bing
     shortcut: b
-    categories: general
+    categories: [general]
     enabled: true
 
   - name: duckduckgo
     engine: duckduckgo
     shortcut: ddg
-    categories: general
+    categories: [general]
     enabled: true
 
   - name: brave
     engine: brave
     shortcut: br
-    categories: general
+    categories: [general]
     enabled: true
 
   - name: wikipedia
     engine: wikipedia
     shortcut: wp
-    categories: general
+    categories: [general]
     enabled: true
 
   - name: pubmed
     engine: pubmed
     shortcut: pm
-    categories: science
+    categories: [science]
     enabled: true
 
   - name: google scholar
     engine: google_scholar
     shortcut: gs
-    categories: science
+    categories: [science]
     enabled: true
 
   - name: baidu
     engine: baidu
     shortcut: bd
-    categories: general
+    categories: [general]
     enabled: true
 
-# Outgoing networking
 outgoing:
-  # Request timeout
   request_timeout: 10.0
-  # Maximum retries
   max_request_timeout: 15.0
-  # User agent
   useragent_suffix: ""
-  # Enable HTTP/2
   enable_http2: true
-  # Pool connections
   pool_connections: 100
   pool_maxsize: 20
-
-# Plugins
-plugins:
-  - plugin: "hostname_replace"
-    replacements:
-      '(.*\.google\.com)': 'https://\1'
-
-# Disabled by default features that are not needed for API usage
-enabled_plugins: []
-
-# Allow only internal network access
-# (SearXNG is NOT exposed to host; only backend container talks to it)
