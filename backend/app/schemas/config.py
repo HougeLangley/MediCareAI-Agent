@@ -238,3 +238,51 @@ class ReviewQueueItem(BaseModel):
     agent_review_notes: str | None
     uploaded_by: uuid.UUID | None
     created_at: datetime
+
+
+# ── External Search (SearXNG) ──
+
+class SearchResultItem(BaseModel):
+    """Single external search result item."""
+
+    title: str
+    url: str
+    snippet: str
+    source_engine: str
+    trust_score: int
+    is_trusted: bool
+
+
+class ExternalSearchRequest(BaseModel):
+    """Admin external search request."""
+
+    query: str = Field(..., min_length=1, max_length=500, description="搜索关键词")
+    search_type: str = Field(
+        default="guideline",
+        pattern=r"^(guideline|drug|paper|raw)$",
+        description="搜索类型: guideline=指南, drug=药物, paper=论文, raw=原始查询",
+    )
+    lang: str = Field(default="zh-CN", max_length=10)
+    max_results: int = Field(default=10, ge=1, le=50)
+
+
+class ExternalSearchResponse(BaseModel):
+    """External search response."""
+
+    search_type: str
+    query: str
+    results: list[SearchResultItem]
+    total_results: int
+    trusted_count: int
+    latency_ms: float | None = None
+
+
+class SearXNGHealthResponse(BaseModel):
+    """SearXNG health check response."""
+
+    status: str  # "ok" or "error"
+    base_url: str
+    latency_ms: float | None = None
+    http_status: int | None = None
+    detail: str | None = None
+    engines: list[str] | None = None

@@ -21,9 +21,13 @@ from app.schemas.audit import AuditLogDetail, AuditLogListItem, AuditLogStats
 from app.schemas.config import (
     BatchSettingsRequest,
     DoctorVerifyRequest,
+    ExternalSearchRequest,
+    ExternalSearchResponse,
     LLMProviderConfigCreate,
     LLMProviderConfigResponse,
     LLMProviderConfigUpdate,
+    SearchResultItem,
+    SearXNGHealthResponse,
     SystemSettingCreate,
     SystemSettingResponse,
     SystemSettingUpdate,
@@ -31,6 +35,7 @@ from app.schemas.config import (
     UserListItem,
 )
 from app.services.audit import AuditService
+from app.services.external_search import ExternalSearchAgent
 from app.services.llm import LLMService
 
 router = APIRouter(dependencies=[Depends(require_role(UserRole.ADMIN))])
@@ -158,6 +163,49 @@ DEFAULT_SETTINGS: list[SystemSettingCreate] = [
         description="审计日志保留天数（过期自动清理）",
         category="audit",
         value_type="number",
+    ),
+    # ── External Search (SearXNG) ──
+    SystemSettingCreate(
+        key="external_search.enabled",
+        value="true",
+        description="是否启用外部医学文献搜索（SearXNG）",
+        category="external_search",
+        value_type="boolean",
+    ),
+    SystemSettingCreate(
+        key="external_search.base_url",
+        value="http://searxng:8080",
+        description="SearXNG 服务基础 URL（Docker 内部地址或外部地址）",
+        category="external_search",
+        value_type="string",
+    ),
+    SystemSettingCreate(
+        key="external_search.timeout",
+        value="10",
+        description="SearXNG 搜索超时时间（秒）",
+        category="external_search",
+        value_type="number",
+    ),
+    SystemSettingCreate(
+        key="external_search.max_results",
+        value="10",
+        description="单次搜索最大返回结果数",
+        category="external_search",
+        value_type="number",
+    ),
+    SystemSettingCreate(
+        key="external_search.trusted_only",
+        value="true",
+        description="仅返回来自可信域名的搜索结果",
+        category="external_search",
+        value_type="boolean",
+    ),
+    SystemSettingCreate(
+        key="external_search.categories",
+        value="general,science,medicine",
+        description="SearXNG 搜索类别（逗号分隔）",
+        category="external_search",
+        value_type="string",
     ),
 ]
 
@@ -1230,4 +1278,90 @@ async def audit_log_stats(
         "total_week": total_week,
         "failed_today": failed_today,
         "action_breakdown": action_breakdown,
+    }
+
+
+# ── External Search (SearXNG) ──
+
+@router.get("/external-search/health", response_model=SearXNGHealthResponse)
+async def external_search_health(
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Check SearXNG connectivity and latency.
+
+    Does not require external_search.enabled to be True — useful for
+    diagnosing configuration issues.
+    """
+    agent = await ExternalSearchAgent.from_config(db)
+    return await agent.healthcheck()
+
+
+@router.post("/external-search", response_model=ExternalSearchResponse)
+async def external_search(
+    request: ExternalSearchRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Perform an external medical knowledge search via SearXNG.
+
+    Search types:
+    - **guideline**: Clinical guidelines and consensus for a disease
+    - **drug**: Drug information (instructions, pharmacology, adverse effects)
+    - **paper**: Academic papers and clinical studies
+    - **raw**: Use the query as-is without template expansion
+    """
+    from app.services.config import DynamicConfigService
+
+    enabled = await DynamicConfigService.external_search_enabled(db)
+    if not enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="External search is disabled in system settings",
+        )
+
+    agent = await ExternalSearchAgent.from_config(db)
+
+    import asyncio
+    start = asyncio.get_event_loop().time()
+
+    if request.search_type == "guideline":
+        results = await agent.search_guidelines(request.query, lang=request.lang)
+    elif request.search_type == "drug":
+        results = await agent.search_drug_info(request.query, lang=request.lang)
+    elif request.search_type == "paper":
+        results = await agent.search_papers(
+            request.query, lang=request.lang, max_results=request.max_results
+        )
+    else:  # raw
+        raw = await agent._searxng_search(request.query, lang=request.lang)
+        results = agent._filter_trusted(raw)
+
+    latency_ms = round((asyncio.get_event_loop().time() - start) * 1000, 1)
+
+    # Respect max_results
+    results = results[: request.max_results]
+
+    # Respect trusted_only setting
+    trusted_only = await DynamicConfigService.external_search_trusted_only(db)
+    if trusted_only:
+        results = [r for r in results if r.is_trusted]
+
+    result_items = [
+        SearchResultItem(
+            title=r.title,
+            url=r.url,
+            snippet=r.snippet,
+            source_engine=r.source_engine,
+            trust_score=r.trust_score,
+            is_trusted=r.is_trusted,
+        )
+        for r in results
+    ]
+
+    return {
+        "search_type": request.search_type,
+        "query": request.query,
+        "results": result_items,
+        "total_results": len(result_items),
+        "trusted_count": sum(1 for r in result_items if r.is_trusted),
+        "latency_ms": latency_ms,
     }

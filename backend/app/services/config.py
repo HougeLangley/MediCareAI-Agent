@@ -132,3 +132,33 @@ class DynamicConfigService:
     @classmethod
     async def rag_chunk_overlap(cls, db: AsyncSession) -> int:
         return await cls.get_int(db, "rag.chunk_overlap", default=200)
+
+    # ------------------------------------------------------------------
+    # External Search (SearXNG)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    async def external_search_enabled(cls, db: AsyncSession) -> bool:
+        return await cls.get_bool(db, "external_search.enabled", default=True)
+
+    @classmethod
+    async def external_search_base_url(cls, db: AsyncSession) -> str:
+        url = await cls.get_str(db, "external_search.base_url")
+        return url or "http://searxng:8080"
+
+    @classmethod
+    async def external_search_timeout(cls, db: AsyncSession) -> int:
+        return await cls.get_int(db, "external_search.timeout", default=10)
+
+    @classmethod
+    async def external_search_max_results(cls, db: AsyncSession) -> int:
+        return await cls.get_int(db, "external_search.max_results", default=10)
+
+    @classmethod
+    async def external_search_trusted_only(cls, db: AsyncSession) -> bool:
+        return await cls.get_bool(db, "external_search.trusted_only", default=True)
+
+    @classmethod
+    async def external_search_categories(cls, db: AsyncSession) -> str:
+        cats = await cls.get_str(db, "external_search.categories")
+        return cats or "general,science,medicine"
