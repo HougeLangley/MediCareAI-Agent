@@ -19,9 +19,10 @@ const CATEGORIES: Record<string, { label: string; color: string }> = {
   agent: { label: '🤖 Agent 配置', color: '#8B5CF6' },
   notification: { label: '📧 通知', color: '#F59E0B' },
   security: { label: '🛡️ 安全', color: '#EF4444' },
+  external_search: { label: '🔍 外部搜索', color: '#06B6D4' },
 };
 
-const CATEGORY_ORDER = ['general', 'auth', 'diagnosis', 'agent', 'notification', 'security'];
+const CATEGORY_ORDER = ['general', 'auth', 'diagnosis', 'agent', 'notification', 'security', 'external_search'];
 
 function getCategoryLabel(cat: string): string {
   return CATEGORIES[cat]?.label || cat;

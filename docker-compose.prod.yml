@@ -139,6 +139,42 @@ services:
           cpus: '0.5'
           memory: 128M
 
+  # ── Valkey (SearXNG dependency) ──
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: medicareai-valkey
+    restart: unless-stopped
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 64M
+
+  # ── SearXNG (External Medical Search) ──
+  searxng:
+    image: searxng/searxng:latest
+    container_name: medicareai-searxng
+    restart: unless-stopped
+    environment:
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-changeme}
+    volumes:
+      - ./searxng:/etc/searxng:ro
+    depends_on:
+      - valkey
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+
 volumes:
   postgres_data:
   redis_data:
+  valkey_data:
