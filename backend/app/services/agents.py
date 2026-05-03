@@ -73,6 +73,15 @@ class MonitoringAssessment(BaseModel):
     next_follow_up: str = ""
 
 
+class ResearchResult(BaseModel):
+    """Structured research report with external citations."""
+
+    summary: str = Field(..., description="Concise evidence-based summary")
+    sources: list[dict[str, Any]] = Field(default_factory=list)
+    confidence: str = Field(default="medium", pattern="^(high|medium|low)$")
+    search_type: str = Field(..., pattern="^(guidelines|drug|papers|general)$")
+
+
 # ---------------------------------------------------------------------------
 # AgentResult
 # ---------------------------------------------------------------------------
@@ -112,13 +121,14 @@ INTENT CATEGORIES:
 - "planning": Patient asks about treatment, medication, follow-up, or care plans
 - "monitoring": Patient reports updates on an existing condition, asks about recovery
 - "consultation": Complex multi-step request that may need diagnosis + planning
+- "research": User asks about latest guidelines, drug info, clinical trials, or medical papers
 - "general": General medical knowledge question (not personal)
 - "escalation": Patient expresses urgency, emergency, or requests a real doctor
 
 OUTPUT FORMAT:
 Respond with a JSON object:
 {
-  "intent": "diagnosis|planning|monitoring|consultation|general|escalation",
+  "intent": "diagnosis|planning|monitoring|consultation|research|general|escalation",
   "confidence": "high|medium|low",
   "reasoning": "brief explanation of why this intent was chosen",
   "clarifying_question": "null or a question if more info is needed"
@@ -130,6 +140,8 @@ RULES:
 - If the user says "药吃完了怎么办", intent is "planning".
 - If the user says "有没有好转", intent is "monitoring".
 - If the user says "帮我安排复查并提醒我", intent is "consultation".
+- If the user says "最近有什么新的糖尿病治疗方案吗", intent is "research".
+- If the user says "阿司匹林有什么副作用", intent is "research".
 """
 
     def __init__(self, provider: str | None = None) -> None:
@@ -454,6 +466,148 @@ OUTPUT: Always use the structured monitoring assessment format.
 
 
 # ---------------------------------------------------------------------------
+# Research Agent — External Search + Synthesis
+# ---------------------------------------------------------------------------
+
+class ResearchAgent:
+    """Searches external medical knowledge via SearXNG and synthesizes findings.
+
+    Design: search-only, no storage. Results are injected into LLM prompts.
+    """
+
+    SYSTEM_PROMPT = """You are ResearchAgent, a medical research assistant.
+
+ROLE:
+- Synthesize external search results into clear, evidence-based answers
+- Always cite sources using [1], [2], etc.
+- Distinguish high-quality sources (guidelines, peer-reviewed papers)
+  from lower-quality sources (general websites)
+- If sources conflict, note the discrepancy and favor the more authoritative source
+- Include a brief disclaimer that external search results are supplementary
+"""
+
+    def __init__(self, provider: str | None = None) -> None:
+        self.provider = provider
+
+    async def research(
+        self,
+        query: str,
+        patient_context: str | None = None,
+        session_id: str | None = None,
+    ) -> AgentResult:
+        """Search external sources and synthesize a structured answer.
+
+        Args:
+            query: User's research question
+            patient_context: Optional patient background for personalization
+            session_id: Agent session ID for persistence
+
+        Returns:
+            AgentResult with structured ResearchResult
+        """
+        from app.services.external_search import ExternalSearchAgent
+
+        async with async_session_maker() as db:
+            # Build searcher from system config
+            searcher = await ExternalSearchAgent.from_config(db)
+
+            # Detect search type by keyword heuristics
+            search_type = self._detect_search_type(query)
+
+            # Execute appropriate search
+            if search_type == "drug":
+                raw_results = await searcher.search_drug_info(query)
+            elif search_type == "papers":
+                raw_results = await searcher.search_papers(query)
+            else:  # guidelines or general
+                raw_results = await searcher.search_guidelines(query)
+
+            # Format as LLM context
+            context = self._format_results(raw_results, search_type)
+
+            # Generate synthesized answer via LLM
+            llm = LLMService(provider=self.provider, db=db)
+            user_msg = f"问题: {query}"
+            if patient_context:
+                user_msg += f"\n患者背景: {patient_context}"
+            user_msg += f"\n\n{context}"
+
+            structured = await llm.generate_structured(
+                messages=[{"role": "user", "content": user_msg}],
+                output_schema=ResearchResult,
+                system_prompt=self.SYSTEM_PROMPT,
+                temperature=0.3,
+                max_tokens=2048,
+            )
+
+            # Enrich sources from raw_results
+            sources = []
+            for i, r in enumerate(raw_results[:5], 1):
+                sources.append({
+                    "index": i,
+                    "title": r.title,
+                    "url": r.url,
+                    "engine": r.source_engine,
+                    "trust_score": r.trust_score,
+                    "is_trusted": r.is_trusted,
+                })
+            structured.sources = sources
+            structured.search_type = search_type
+
+            return AgentResult(
+                agent_type="research",
+                content=structured.model_dump(),
+                structured_output=structured,
+                session_id=session_id,
+            )
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _detect_search_type(self, query: str) -> str:
+        """Classify the query into search type by keyword matching."""
+        drug_keywords = [
+            "药", "药物", "说明书", "副作用", "不良反应",
+            "dosage", "dose", "mg", "tablet", "capsule",
+        ]
+        paper_keywords = [
+            "论文", "研究", "临床试验", "trial", "meta-analysis",
+            "RCT", "文献", "随机对照", "系统评价",
+        ]
+        guideline_keywords = [
+            "指南", "guideline", "规范", "共识", "recommendation",
+            "treatment", "诊疗", "管理",
+        ]
+
+        q = query.lower()
+        if any(k in q for k in drug_keywords):
+            return "drug"
+        if any(k in q for k in paper_keywords):
+            return "papers"
+        if any(k in q for k in guideline_keywords):
+            return "guidelines"
+        return "guidelines"  # Default: treat as clinical query
+
+    def _format_results(
+        self, results: list[Any], search_type: str
+    ) -> str:
+        """Format search results as citation-rich context for LLM."""
+        lines = [f"【外部搜索】类型: {search_type}  |  共 {len(results)} 条结果"]
+        for i, r in enumerate(results[:5], 1):
+            trust_marker = "[可信]" if r.is_trusted else "[一般]"
+            lines.append(
+                f"\n[{i}] {trust_marker} {r.title}\n"
+                f"    来源: {r.source_engine}  |  可信度分: {r.trust_score}\n"
+                f"    URL: {r.url}\n"
+                f"    摘要: {r.snippet[:300]}"
+            )
+        if not results:
+            lines.append("\n（未搜索到相关外部资料）")
+        return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Agent Orchestrator
 # ---------------------------------------------------------------------------
 
@@ -472,6 +626,7 @@ class AgentOrchestrator:
         self.diagnosis = DiagnosisAgent(provider=provider)
         self.planning = PlanningAgent(provider=provider)
         self.monitoring = MonitoringAgent(provider=provider)
+        self.research = ResearchAgent(provider=provider)
 
     async def route(
         self,
@@ -531,6 +686,19 @@ class AgentOrchestrator:
             return {
                 "intent": intent_result,
                 "agent": "monitoring",
+                "session_id": session_id,
+                "result": result.content if isinstance(result.content, dict) else {"raw": result.content},
+            }
+
+        elif intent == "research":
+            result = await self.research.research(
+                query=user_input,
+                patient_context=patient_history,
+                session_id=session_id,
+            )
+            return {
+                "intent": intent_result,
+                "agent": "research",
                 "session_id": session_id,
                 "result": result.content if isinstance(result.content, dict) else {"raw": result.content},
             }
