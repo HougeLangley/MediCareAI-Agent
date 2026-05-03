@@ -44,9 +44,9 @@ class RerankerService:
             select(LLMProviderConfig).where(
                 LLMProviderConfig.model_type == "reranking",
                 LLMProviderConfig.is_active == True,
-            )
+            ).limit(1)
         )
-        cfg = result.scalar_one_or_none()
+        cfg = result.scalars().first()
         if cfg is None:
             raise ValueError(
                 "No active reranking provider configured. "
