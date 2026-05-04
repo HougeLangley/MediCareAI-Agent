@@ -7,6 +7,7 @@ SearXNG integration planned for real-time external knowledge retrieval.
 """
 
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import func, select, text
