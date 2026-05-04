@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -9,7 +10,7 @@ from pydantic import BaseModel, Field
 class AuditLogListItem(BaseModel):
     """Lightweight audit log entry for list views."""
 
-    id: str
+    id: UUID
     user_email: str | None = None
     user_role: str | None = None
     action: str
