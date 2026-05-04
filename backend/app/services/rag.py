@@ -88,8 +88,9 @@ class RAGService:
              "content": content, "id": str(doc.id)},
         )
 
-        chunks = self._chunk_text(content)
-        for idx, chunk_text in enumerate(chunks):
+        chunks_texts = self._chunk_text(content)
+        chunk_objs: list[DocumentChunk] = []
+        for idx, chunk_text in enumerate(chunks_texts):
             chunk = DocumentChunk(
                 document_id=doc.id,
                 content=chunk_text,
@@ -97,6 +98,7 @@ class RAGService:
             )
             self.db.add(chunk)
             await self.db.flush()
+            chunk_objs.append(chunk)
 
             await self.db.execute(
                 text(
@@ -110,14 +112,14 @@ class RAGService:
         # Vectorize chunks asynchronously
         try:
             embed_svc = EmbeddingService(self.db)
-            chunk_texts = [c for c in chunks]
+            chunk_texts = [c.content for c in chunk_objs]
             embeddings = await embed_svc.embed(chunk_texts)
-            for chunk, emb in zip(chunks, embeddings):
+            for chunk_obj, emb in zip(chunk_objs, embeddings):
                 await self.db.execute(
                     text(
                         "UPDATE document_chunks SET embedding_json = :emb WHERE id = :id"
                     ),
-                    {"emb": str(emb), "id": str(chunk.id)},
+                    {"emb": str(emb), "id": str(chunk_obj.id)},
                 )
             doc.vectorized_at = datetime.now(timezone.utc)
             doc.embedding_model = embed_svc._model or "unknown"
@@ -125,7 +127,7 @@ class RAGService:
             # Embedding provider not configured — skip silently, keep doc usable
             pass
 
-        doc.chunk_count = len(chunks)
+        doc.chunk_count = len(chunk_objs)
         await self.db.commit()
         await self.db.refresh(doc)
         return doc
