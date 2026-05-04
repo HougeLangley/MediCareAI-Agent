@@ -1047,59 +1047,64 @@ async def create_document_admin(
     from app.services.document_parser import parse_uploaded_file
     from app.services.rag import RAGService
 
-    # Determine content: from uploaded file or from text field
-    final_content: str
-    if file is not None:
-        parsed_text, file_type = await parse_uploaded_file(file)
-        final_content = parsed_text
-        # If title is generic/empty and file has a meaningful name, use filename as title
-        if not title or title.strip() in ("", "新建文档", "Untitled"):
-            # Remove extension for title
-            fname = file.filename or "Uploaded Document"
-            for ext in (".pdf", ".docx", ".txt"):
-                if fname.lower().endswith(ext):
-                    fname = fname[: -len(ext)]
-                    break
-            title = fname or title
-    else:
-        if not content or not content.strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Either 'content' text or a 'file' upload is required",
-            )
-        final_content = content
+    try:
+        # Determine content: from uploaded file or from text field
+        final_content: str
+        if file is not None:
+            parsed_text, file_type = await parse_uploaded_file(file)
+            final_content = parsed_text
+            # If title is generic/empty and file has a meaningful name, use filename as title
+            if not title or title.strip() in ("", "新建文档", "Untitled"):
+                # Remove extension for title
+                fname = file.filename or "Uploaded Document"
+                for ext in (".pdf", ".docx", ".txt"):
+                    if fname.lower().endswith(ext):
+                        fname = fname[: -len(ext)]
+                        break
+                title = fname or title
+        else:
+            if not content or not content.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Either 'content' text or a 'file' upload is required",
+                )
+            final_content = content
 
-    service = RAGService(db)
-    doc = await service.create_document(
-        title=title,
-        content=final_content,
-        doc_type=doc_type,
-        source_url=source_url,
-        department=department,
-        disease_tags=disease_tags or [],
-        drug_name=drug_name,
-        language=language,
-    )
-    # Update admin-specific fields
-    doc.is_featured = is_featured
-    doc.source_type = "admin_upload"
-    await db.commit()
-    await db.refresh(doc)
+        service = RAGService(db)
+        doc = await service.create_document(
+            title=title,
+            content=final_content,
+            doc_type=doc_type,
+            source_url=source_url,
+            department=department,
+            disease_tags=disease_tags or [],
+            drug_name=drug_name,
+            language=language,
+        )
+        # Update admin-specific fields
+        doc.is_featured = is_featured
+        doc.source_type = "admin_upload"
+        await db.commit()
+        await db.refresh(doc)
 
-    # Record audit log
-    await AuditService.record(
-        db,
-        action=AuditActionType.DOCUMENT_CREATE,
-        user_id=str(current_user.id) if current_user else None,
-        user_email=current_user.email if current_user else None,
-        user_role=current_user.role.value if current_user else None,
-        resource_type=AuditResourceType.DOCUMENT,
-        resource_id=str(doc.id),
-        details={"title": doc.title, "doc_type": doc.doc_type.value, "has_file": file is not None},
-    )
-    await db.commit()
+        # Record audit log
+        await AuditService.record(
+            db,
+            action=AuditActionType.DOCUMENT_CREATE,
+            user_id=str(current_user.id) if current_user else None,
+            user_email=current_user.email if current_user else None,
+            user_role=current_user.role.value if current_user else None,
+            resource_type=AuditResourceType.DOCUMENT,
+            resource_id=str(doc.id),
+            details={"title": doc.title, "doc_type": doc.doc_type.value, "has_file": file is not None},
+        )
+        await db.commit()
 
-    return doc
+        return doc
+    finally:
+        # Immediately delete uploaded file temp data to save server disk space
+        if file is not None:
+            await file.close()
 
 
 @router.patch("/knowledge/{doc_id}", response_model=DocumentDetail)
