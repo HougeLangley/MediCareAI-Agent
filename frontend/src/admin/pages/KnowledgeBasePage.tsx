@@ -294,43 +294,6 @@ export default function KnowledgeBasePage() {
         <DialogContent>
           {formError && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setFormError(null)}>{formError}</Alert>}
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid size={{ xs: 12 }}>
-              <TextField fullWidth label="标题" value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Autocomplete
-                freeSolo options={DEPARTMENT_OPTIONS}
-                value={form.department || ''}
-                onChange={(_, v) => setForm(f => ({ ...f, department: v || null }))}
-                renderInput={params => <TextField {...params} label="科室" />}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField fullWidth label="来源 URL" value={form.source_url || ''}
-                onChange={e => setForm(f => ({ ...f, source_url: e.target.value || null }))} />
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <Autocomplete
-                multiple freeSolo options={[]}
-                value={form.disease_tags || []}
-                onChange={(_, v) => setForm(f => ({ ...f, disease_tags: v }))}
-                renderInput={params => <TextField {...params} label="疾病标签" placeholder="输入后回车添加" />}
-              />
-            </Grid>
-            {currentDocType === 'drug_reference' && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField fullWidth label="药物名称" value={form.drug_name || ''}
-                  onChange={e => setForm(f => ({ ...f, drug_name: e.target.value || null }))} />
-              </Grid>
-            )}
-            <Grid size={{ xs: 12 }}>
-              <FormControlLabel
-                control={<Switch checked={form.is_featured}
-                  onChange={e => setForm(f => ({ ...f, is_featured: e.target.checked }))} />}
-                label="设为精选"
-              />
-            </Grid>
             {!editingDoc && (
               <Grid size={{ xs: 12 }}>
                 <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 1, p: 2, textAlign: 'center' }}>
@@ -370,6 +333,43 @@ export default function KnowledgeBasePage() {
                 </Box>
               </Grid>
             )}
+            <Grid size={{ xs: 12 }}>
+              <TextField fullWidth label="标题" value={form.title}
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Autocomplete
+                freeSolo options={DEPARTMENT_OPTIONS}
+                value={form.department || ''}
+                onChange={(_, v) => setForm(f => ({ ...f, department: v || null }))}
+                renderInput={params => <TextField {...params} label="科室" />}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField fullWidth label="来源 URL" value={form.source_url || ''}
+                onChange={e => setForm(f => ({ ...f, source_url: e.target.value || null }))} />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <Autocomplete
+                multiple freeSolo options={[]}
+                value={form.disease_tags || []}
+                onChange={(_, v) => setForm(f => ({ ...f, disease_tags: v }))}
+                renderInput={params => <TextField {...params} label="疾病标签" placeholder="输入后回车添加" />}
+              />
+            </Grid>
+            {currentDocType === 'drug_reference' && (
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField fullWidth label="药物名称" value={form.drug_name || ''}
+                  onChange={e => setForm(f => ({ ...f, drug_name: e.target.value || null }))} />
+              </Grid>
+            )}
+            <Grid size={{ xs: 12 }}>
+              <FormControlLabel
+                control={<Switch checked={form.is_featured}
+                  onChange={e => setForm(f => ({ ...f, is_featured: e.target.checked }))} />}
+                label="设为精选"
+              />
+            </Grid>
             <Grid size={{ xs: 12 }}>
               <TextField fullWidth multiline rows={8} label={file ? '内容（可选补充）' : '内容（支持 Markdown）'}
                 value={form.content}
