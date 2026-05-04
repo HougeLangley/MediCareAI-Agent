@@ -293,46 +293,54 @@ export default function KnowledgeBasePage() {
         <DialogTitle>{editingDoc ? '编辑文档' : '新建文档'}</DialogTitle>
         <DialogContent>
           {formError && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setFormError(null)}>{formError}</Alert>}
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            {!editingDoc && (
-              <Grid size={{ xs: 12 }}>
-                <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 1, p: 2, textAlign: 'center' }}>
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,.txt"
-                    style={{ display: 'none' }}
-                    id="doc-upload-input"
-                    onChange={e => {
-                      const f = e.target.files?.[0] || null;
-                      setFile(f);
-                      if (f && !form.title.trim()) {
-                        // Auto-fill title from filename
-                        const name = f.name.replace(/\.(pdf|docx|txt)$/i, '');
-                        setForm(prev => ({ ...prev, title: name }));
-                      }
-                    }}
-                  />
-                  <label htmlFor="doc-upload-input">
-                    <Button component="span" variant="outlined" size="small">
-                      {file ? '更换文件' : '上传文件'}
-                    </Button>
-                  </label>
-                  {file ? (
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      已选择: <strong>{file.name}</strong> ({(file.size / 1024).toFixed(1)} KB)
-                      <br />
-                      <Typography component="span" variant="caption" color="text.secondary">
-                        文件内容将自动解析并分块索引
-                      </Typography>
-                    </Typography>
-                  ) : (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                      支持 PDF、Word (.docx)、纯文本 (.txt)
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-            )}
+
+          {/* ── Top upload zone: between title bar and form fields ── */}
+          {!editingDoc && (
+            <Box sx={{
+              border: '2px dashed',
+              borderColor: 'primary.main',
+              borderRadius: 2,
+              p: 3,
+              textAlign: 'center',
+              mb: 2,
+              bgcolor: 'action.hover',
+            }}>
+              <input
+                type="file"
+                accept=".pdf,.docx,.txt"
+                style={{ display: 'none' }}
+                id="doc-upload-input"
+                onChange={e => {
+                  const f = e.target.files?.[0] || null;
+                  setFile(f);
+                  if (f && !form.title.trim()) {
+                    const name = f.name.replace(/\.(pdf|docx|txt)$/i, '');
+                    setForm(prev => ({ ...prev, title: name }));
+                  }
+                }}
+              />
+              <label htmlFor="doc-upload-input">
+                <Button component="span" variant="contained" size="small">
+                  {file ? '更换文件' : '📎 上传文档'}
+                </Button>
+              </label>
+              {file ? (
+                <Typography variant="body2" sx={{ mt: 1.5 }}>
+                  已选择: <strong>{file.name}</strong> ({(file.size / 1024).toFixed(1)} KB)
+                  <br />
+                  <Typography component="span" variant="caption" color="text.secondary">
+                    文件内容将自动解析、分块索引并自动填写下方内容
+                  </Typography>
+                </Typography>
+              ) : (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+                  支持 PDF、Word (.docx)、纯文本 (.txt) · 上传后可自动提取标题及内容
+                </Typography>
+              )}
+            </Box>
+          )}
+
+          <Grid container spacing={2}>
             <Grid size={{ xs: 12 }}>
               <TextField fullWidth label="标题" value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
