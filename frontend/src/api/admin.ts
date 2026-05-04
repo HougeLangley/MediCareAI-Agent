@@ -421,7 +421,7 @@ export async function listNotifications(params?: {
   is_read?: boolean;
   search?: string;
 }): Promise<NotificationListResponse> {
-  const url = new URL(`${API_BASE}/admin/notifications/notifications`, window.location.origin);
+  const url = new URL(`${API_BASE}/admin/notifications`, window.location.origin);
   if (params?.page) url.searchParams.set('page', String(params.page));
   if (params?.page_size) url.searchParams.set('page_size', String(params.page_size));
   if (params?.notification_type) url.searchParams.set('notification_type', params.notification_type);
@@ -433,17 +433,17 @@ export async function listNotifications(params?: {
 }
 
 export async function getUnreadCount(): Promise<NotificationUnreadCount> {
-  const res = await fetch(`${API_BASE}/admin/notifications/notifications/unread-count`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/admin/notifications/unread-count`, { headers: authHeaders() });
   return handleResponse<NotificationUnreadCount>(res);
 }
 
 export async function getNotification(id: string): Promise<NotificationDetail> {
-  const res = await fetch(`${API_BASE}/admin/notifications/notifications/${id}`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/admin/notifications/${id}`, { headers: authHeaders() });
   return handleResponse<NotificationDetail>(res);
 }
 
 export async function createNotification(data: NotificationCreate): Promise<NotificationDetail> {
-  const res = await fetch(`${API_BASE}/admin/notifications/notifications`, {
+  const res = await fetch(`${API_BASE}/admin/notifications`, {
     method: 'POST',
     headers: jsonHeaders(),
     body: JSON.stringify(data),
@@ -452,7 +452,7 @@ export async function createNotification(data: NotificationCreate): Promise<Noti
 }
 
 export async function broadcastNotification(data: NotificationBroadcastCreate): Promise<{ message: string; notification_id: string; recipient_count: number }> {
-  const res = await fetch(`${API_BASE}/admin/notifications/notifications/broadcast`, {
+  const res = await fetch(`${API_BASE}/admin/notifications/broadcast`, {
     method: 'POST',
     headers: jsonHeaders(),
     body: JSON.stringify(data),
@@ -461,7 +461,7 @@ export async function broadcastNotification(data: NotificationBroadcastCreate): 
 }
 
 export async function markNotificationRead(id: string, is_read = true): Promise<NotificationDetail> {
-  const res = await fetch(`${API_BASE}/admin/notifications/notifications/${id}/read`, {
+  const res = await fetch(`${API_BASE}/admin/notifications/${id}/read`, {
     method: 'PATCH',
     headers: jsonHeaders(),
     body: JSON.stringify({ is_read }),
@@ -470,7 +470,7 @@ export async function markNotificationRead(id: string, is_read = true): Promise<
 }
 
 export async function deleteNotification(id: string): Promise<{ message: string; deleted_id: string }> {
-  const res = await fetch(`${API_BASE}/admin/notifications/notifications/${id}`, {
+  const res = await fetch(`${API_BASE}/admin/notifications/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
