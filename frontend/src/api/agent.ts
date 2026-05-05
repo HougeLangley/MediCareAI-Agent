@@ -151,7 +151,7 @@ export function streamDiagnose(
     const eventSource = new EventSource(url);
 
     // 处理命名事件
-    const namedEvents: SSEEventType[] = ['intent', 'agent_switch', 'thinking', 'tool_call', 'tool_result', 'complete', 'error'];
+    const namedEvents: SSEEventType[] = ['intent', 'agent_switch', 'thinking', 'tool_call', 'tool_result', 'text', 'complete', 'error'];
     namedEvents.forEach(eventName => {
       eventSource.addEventListener(eventName, (e) => {
         try {
@@ -171,29 +171,10 @@ export function streamDiagnose(
       });
     });
 
-    // 默认消息处理（无事件名的数据，通常是流式文本片段）
+    // 默认消息处理（无事件名的数据，作为安全回退）
     eventSource.onmessage = (e) => {
-      try {
-        const parsed = JSON.parse(e.data);
-        // 如果是带 event 字段的 JSON
-        if (parsed.event) {
-          onEvent({ event: parsed.event as SSEEventType, data: parsed.data || parsed });
-          if (parsed.event === 'complete') {
-            eventSource.close();
-            resolve();
-          }
-          if (parsed.event === 'error') {
-            eventSource.close();
-            reject(new Error(parsed.data?.message || 'SSE error'));
-          }
-        } else {
-          // 纯文本片段
-          onEvent({ event: 'text', data: { text: e.data } });
-        }
-      } catch {
-        // 非 JSON 数据，当作文本片段
-        onEvent({ event: 'text', data: { text: e.data } });
-      }
+      // 所有命名事件已通过 addEventListener 处理，这里只处理未知格式的数据
+      onEvent({ event: 'text', data: { text: e.data } });
     };
 
     eventSource.onerror = () => {

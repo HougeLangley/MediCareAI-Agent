@@ -33,13 +33,17 @@ export default function ChatMessage({ message }: Props) {
       )}
 
       <Box sx={{ maxWidth: '80%' }}>
+        {isAgent && message.workflowSteps && message.workflowSteps.length > 0 && (
+          <AgentWorkflow steps={message.workflowSteps} />
+        )}
+
         <Paper elevation={0} sx={{
           p: 1.5,
           borderRadius: isAgent ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
           background: isAgent ? '#F5E6D3' : 'background.paper',
           border: isAgent ? 'none' : '1px solid #F5E6D3',
         }}>
-          <Box sx={{ color: 'text.primary', wordBreak: 'break-word', lineHeight: 1.6, '& > *:first-of-type': { mt: 0 }, '& > *:last-of-type': { mb: 0 } }}>
+          <Box sx={{ color: 'text.primary', wordBreak: 'break-word', lineHeight: 1.6, whiteSpace: 'pre-wrap', '& > *:first-of-type': { mt: 0 }, '& > *:last-of-type': { mb: 0 } }}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -115,10 +119,6 @@ export default function ChatMessage({ message }: Props) {
         </Paper>
 
         {isAgent && message.structured && <DiagnosisCard report={message.structured} />}
-
-        {isAgent && message.workflowSteps && message.workflowSteps.length > 0 && (
-          <AgentWorkflow steps={message.workflowSteps} />
-        )}
 
         {isAgent && message.toolCalls && message.toolCalls.length > 0 && (
           <Box sx={{ mt: 1 }}>

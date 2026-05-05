@@ -429,7 +429,7 @@ Use Markdown formatting for readability.""",
                     temperature=0.3,
                     max_tokens=2048,
                 ):
-                    yield f"data: {chunk}\n\n"
+                    yield f"event: text\ndata: {json.dumps({'text': chunk})}\n\n"
             except Exception as e:
                 yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
                 return
