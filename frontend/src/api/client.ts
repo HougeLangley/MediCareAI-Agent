@@ -15,6 +15,18 @@ function ensureHttps(base: string): string {
   return base;
 }
 
+/** 构建最终请求 URL，最后一道防线：绝对 HTTP 强制升级为 HTTPS */
+export function buildApiUrl(path: string): string {
+  const base = ensureHttps(rawBase);
+  if (base.startsWith('http://') && typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    return base.replace('http://', 'https://') + path;
+  }
+  if (base.startsWith('http')) {
+    return base + path;
+  }
+  return new URL(path, window.location.origin).toString();
+}
+
 export const API_BASE = ensureHttps(rawBase);
 
 /** 获取当前访问令牌 */

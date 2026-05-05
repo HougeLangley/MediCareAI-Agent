@@ -14,7 +14,7 @@ import type {
   SystemSettingUpdate,
 } from '../types/admin';
 
-import { API_BASE, authHeaders, jsonHeaders, getToken } from './client';
+import { API_BASE, authHeaders, jsonHeaders, getToken, buildApiUrl } from './client';
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -28,7 +28,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 // ─── LLM Provider Configs ───────────────────────────────────
 
 export async function listLLMProviders(platform?: string): Promise<LLMProvider[]> {
-  const url = new URL(`${API_BASE}/admin/llm-providers`, window.location.origin);
+  const url = new URL(buildApiUrl('/admin/llm-providers'));
   if (platform) url.searchParams.set('platform', platform);
   const res = await fetch(url.toString(), { headers: authHeaders() });
   return handleResponse<LLMProvider[]>(res);
@@ -79,7 +79,7 @@ export async function testLLMProvider(id: string): Promise<ProviderTestResult> {
 // ─── System Settings ────────────────────────────────────────
 
 export async function listSettings(category?: string): Promise<SystemSetting[]> {
-  const url = new URL(`${API_BASE}/admin/settings`, window.location.origin);
+  const url = new URL(buildApiUrl('/admin/settings'));
   if (category) url.searchParams.set('category', category);
   const res = await fetch(url.toString(), { headers: authHeaders() });
   return handleResponse<SystemSetting[]>(res);
@@ -200,7 +200,7 @@ export async function listUsers(params?: {
   skip?: number;
   limit?: number;
 }): Promise<UserItem[]> {
-  const url = new URL(`${API_BASE}/admin/users`, window.location.origin);
+  const url = new URL(buildApiUrl('/admin/users'));
   if (params?.role) url.searchParams.set('role', params.role);
   if (params?.status) url.searchParams.set('status', params.status);
   if (params?.search) url.searchParams.set('search', params.search);
@@ -235,7 +235,7 @@ export async function listDoctors(params?: {
   skip?: number;
   limit?: number;
 }): Promise<UserItem[]> {
-  const url = new URL(`${API_BASE}/admin/doctors`, window.location.origin);
+  const url = new URL(buildApiUrl('/admin/doctors'));
   if (params?.is_verified !== undefined) url.searchParams.set('is_verified', String(params.is_verified));
   if (params?.status) url.searchParams.set('status', params.status);
   if (params?.search) url.searchParams.set('search', params.search);
@@ -274,7 +274,7 @@ export async function listDocuments(params?: {
   skip?: number;
   limit?: number;
 }): Promise<DocumentItem[]> {
-  const url = new URL(`${API_BASE}/admin/knowledge`, window.location.origin);
+  const url = new URL(buildApiUrl('/admin/knowledge'));
   if (params?.doc_type) url.searchParams.set('doc_type', params.doc_type);
   if (params?.status) url.searchParams.set('status', params.status);
   if (params?.search) url.searchParams.set('search', params.search);
@@ -345,7 +345,7 @@ export async function listReviewQueue(params?: {
   skip?: number;
   limit?: number;
 }): Promise<ReviewQueueItem[]> {
-  const url = new URL(`${API_BASE}/admin/knowledge/reviews`, window.location.origin);
+  const url = new URL(buildApiUrl('/admin/knowledge/reviews'));
   if (params?.status) url.searchParams.set('status', params.status);
   if (params?.skip !== undefined) url.searchParams.set('skip', String(params.skip));
   if (params?.limit !== undefined) url.searchParams.set('limit', String(params.limit));
@@ -378,7 +378,7 @@ export async function reviewDocument(id: string, data: ReviewAction): Promise<{
 // ─── Audit Logs ─────────────────────────────────────────────────────────────────────────
 
 export async function listAuditLogs(params?: AuditLogFilters): Promise<AuditLogItem[]> {
-  const url = new URL(`${API_BASE}/admin/audit-logs`, window.location.origin);
+  const url = new URL(buildApiUrl('/admin/audit-logs'));
   if (params?.action) url.searchParams.set('action', params.action);
   if (params?.user_id) url.searchParams.set('user_id', params.user_id);
   if (params?.resource_type) url.searchParams.set('resource_type', params.resource_type);
@@ -421,7 +421,7 @@ export async function listNotifications(params?: {
   is_read?: boolean;
   search?: string;
 }): Promise<NotificationListResponse> {
-  const url = new URL(`${API_BASE}/admin/notifications/`, window.location.origin);
+  const url = new URL(buildApiUrl('/admin/notifications/'));
   if (params?.page) url.searchParams.set('page', String(params.page));
   if (params?.page_size) url.searchParams.set('page_size', String(params.page_size));
   if (params?.notification_type) url.searchParams.set('notification_type', params.notification_type);
@@ -590,7 +590,7 @@ export async function listEmailLogs(params?: {
   status?: string;
   search?: string;
 }): Promise<EmailLogListResponse> {
-  const url = new URL(`${API_BASE}/admin/email/logs`, window.location.origin);
+  const url = new URL(buildApiUrl('/admin/email/logs'));
   if (params?.page) url.searchParams.set('page', String(params.page));
   if (params?.page_size) url.searchParams.set('page_size', String(params.page_size));
   if (params?.status) url.searchParams.set('status', params.status);
