@@ -56,7 +56,7 @@ class PatientSummaryResponse:
 
 @router.get("/stats")
 async def get_dashboard_stats(
-    ctx: CurrentUserContext = Depends(),
+    ctx: CurrentUserContext,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, int]:
     """Get doctor dashboard statistics."""
@@ -82,12 +82,12 @@ async def get_dashboard_stats(
 
 @router.get("/cases")
 async def list_doctor_cases(
+    ctx: CurrentUserContext,
+    db: AsyncSession = Depends(get_db),
     status_filter: str | None = Query(None, alias="status"),
     search: str | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    ctx: CurrentUserContext = Depends(),
-    db: AsyncSession = Depends(get_db),
 ) -> list[dict[str, Any]]:
     """List patients/cases for doctor."""
     if not ctx.user:
@@ -145,7 +145,7 @@ async def list_doctor_cases(
 @router.get("/cases/{case_id}")
 async def get_case_detail(
     case_id: str,
-    ctx: CurrentUserContext = Depends(),
+    ctx: CurrentUserContext,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get detailed case information for doctor review."""
@@ -202,7 +202,7 @@ async def get_case_detail(
 async def send_plan_instruction(
     case_id: str,
     instruction: dict[str, str],
-    ctx: CurrentUserContext = Depends(),
+    ctx: CurrentUserContext,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Send natural language instruction to Agent for case planning."""
