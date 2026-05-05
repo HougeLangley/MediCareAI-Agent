@@ -11,6 +11,8 @@ import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
 import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded';
 import SecurityIcon from '@mui/icons-material/Security';
 import SpeedIcon from '@mui/icons-material/Speed';
+import { agentApi } from '../api/agent';
+import { getToken } from '../api/client';
 
 const warmPrimary = '#E8956A';
 const warmText = '#5C4033';
@@ -18,6 +20,23 @@ const warmBg = '#FFFBF5';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+
+  const handleTryNow = async () => {
+    // 如果未登录，创建访客 session
+    if (!getToken()) {
+      try {
+        await agentApi.fetchGuestStatus();
+      } catch {
+        // 没有访客 token 或已过期，创建新的
+        try {
+          await agentApi.createGuestSession();
+        } catch (e) {
+          console.error('Failed to create guest session:', e);
+        }
+      }
+    }
+    navigate('/chat');
+  };
 
   const features = [
     {
@@ -97,7 +116,7 @@ export default function LandingPage() {
             <Button
               variant="contained"
               size="large"
-              onClick={() => navigate('/chat')}
+              onClick={handleTryNow}
               sx={{
                 bgcolor: warmPrimary,
                 color: '#fff',

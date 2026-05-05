@@ -12,6 +12,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import type { ChatMessageItem, ChatSession, GuestStatus, SSEEvent, DiagnosisReport } from '../types/agent';
 import { agentApi } from '../api/agent';
+import { getToken } from '../api/client';
 import Sidebar from './Sidebar';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
@@ -36,12 +37,36 @@ export default function ChatPage() {
   const [currentSessionId, setCurrentSessionId] = useState<string>();
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  // 使用 lazy initializer 获取 guestStatus，避免在 effect 中同步 setState
-  const [guestStatus] = useState<GuestStatus | null>(() => agentApi.getGuestStatus());
+  const [guestStatus, setGuestStatus] = useState<GuestStatus | null>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const didInit = useRef(false);
+
+  // 初始化：检查认证状态，未登录时自动创建访客 session
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+
+    const initAuth = async () => {
+      const stored = agentApi.getGuestStatus();
+      if (stored) {
+        setGuestStatus(stored);
+        return;
+      }
+      if (!getToken()) {
+        // 未登录，尝试创建访客 session
+        try {
+          await agentApi.createGuestSession();
+          setGuestStatus(agentApi.getGuestStatus());
+        } catch (e) {
+          console.error('Failed to create guest session on ChatPage init:', e);
+        }
+      }
+    };
+
+    initAuth();
+  }, []);
 
   // 滚动到底部
   useEffect(() => {
@@ -80,13 +105,10 @@ export default function ChatPage() {
 
   // 初始化：使用 useLayoutEffect + setTimeout 将 setState 延迟到下一个 tick
   useLayoutEffect(() => {
-    if (didInit.current) return;
-    didInit.current = true;
-
+    if (sessions.length > 0) return;
     const timer = setTimeout(() => {
-      if (sessions.length === 0) startNewSession();
+      startNewSession();
     }, 0);
-
     return () => clearTimeout(timer);
   }, [sessions.length, startNewSession]);
 

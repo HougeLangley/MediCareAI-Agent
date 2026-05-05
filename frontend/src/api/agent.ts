@@ -29,42 +29,56 @@ export function getStoredGuestStatus(): GuestStatus | null {
 
 /**
  * 创建访客 Session
- * POST /api/v1/guest/session
+ * POST /api/v1/auth/guest
  */
 export async function createGuestSession(
   fingerprint?: string
 ): Promise<string> {
-  const res = await fetch(`${API_BASE}/guest/session`, {
+  const res = await fetch(`${API_BASE}/auth/guest`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fingerprint: fingerprint || 'web' }),
   });
-  const json: ApiResponse<{ guest_token: string; remaining_interactions: number }> =
-    await res.json();
-  if (json.code !== 200) throw new Error(json.message);
-  localStorage.setItem('guest_token', json.data.guest_token);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  // 后端返回: { id, session_token, message_count, max_messages, expires_at, created_at }
+  localStorage.setItem('guest_token', data.session_token);
   const status: GuestStatus = {
-    interaction_count: 0,
-    max_interactions: 3,
-    remaining: json.data.remaining_interactions,
+    interaction_count: data.message_count || 0,
+    max_interactions: data.max_messages || 10,
+    remaining: (data.max_messages || 10) - (data.message_count || 0),
     can_interact: true,
   };
   localStorage.setItem('guest_status', JSON.stringify(status));
-  return json.data.guest_token;
+  return data.session_token;
 }
 
 /**
  * 查询访客状态
- * GET /api/v1/guest/status
+ * GET /api/v1/auth/guest/status
  */
 export async function fetchGuestStatus(): Promise<GuestStatus> {
-  const res = await fetch(`${API_BASE}/guest/status`, {
-    headers: authHeaders(),
+  const guestToken = getGuestToken();
+  const res = await fetch(`${API_BASE}/auth/guest/status`, {
+    headers: guestToken ? { 'X-Guest-Token': guestToken } : {},
   });
-  const json: ApiResponse<GuestStatus> = await res.json();
-  if (json.code !== 200) throw new Error(json.message);
-  localStorage.setItem('guest_status', JSON.stringify(json.data));
-  return json.data;
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  // 后端返回: { interaction_count, max_interactions, remaining, can_interact, expires_at }
+  const status: GuestStatus = {
+    interaction_count: data.interaction_count || 0,
+    max_interactions: data.max_interactions || 10,
+    remaining: data.remaining ?? 0,
+    can_interact: data.can_interact ?? false,
+  };
+  localStorage.setItem('guest_status', JSON.stringify(status));
+  return status;
 }
 
 /**
