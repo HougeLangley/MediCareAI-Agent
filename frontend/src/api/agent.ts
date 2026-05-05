@@ -127,6 +127,12 @@ export function streamDiagnose(
     if (payload.session_id) params.set('session_id', payload.session_id);
     if (payload.patient_history) params.set('patient_history', payload.patient_history);
 
+    // EventSource 不支持自定义 headers，将 token 通过 URL query 传递
+    const token = getToken();
+    const guestToken = getGuestToken();
+    if (guestToken) params.set('guest_token', guestToken);
+    else if (token) params.set('token', token);
+
     const url = `${API_BASE}/agents/route/stream?${params.toString()}`;
     const eventSource = new EventSource(url);
 
