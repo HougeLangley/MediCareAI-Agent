@@ -99,7 +99,7 @@ const riskMap: Record<string, { label: string; color: 'default' | 'primary' | 's
 export default function DoctorDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DoctorStats>(demoStats);
-  const [patients, setPatients] = useState<PatientSummary[]>(demoPatients);
+  const [patients, setPatients] = useState<PatientSummary[]>([]);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingPatients, setLoadingPatients] = useState(true);
 
@@ -121,10 +121,10 @@ export default function DoctorDashboard() {
 
     listPatients()
       .then((data) => {
-        if (mounted) setPatients(data.slice(0, 5));
+        if (mounted) setPatients(data);
       })
       .catch(() => {
-        if (mounted) setPatients(demoPatients);
+        if (mounted) setPatients([]);
       })
       .finally(() => {
         if (mounted) setLoadingPatients(false);

@@ -7,7 +7,8 @@ import patientTheme from './theme';
 import doctorTheme from './themes/doctorTheme';
 import { getUserRole, isLoggedIn } from './api/auth';
 
-// 患者端
+// 公共路由
+const LandingPage = lazy(() => import('./components/LandingPage'));
 const ChatPage = lazy(() => import('./components/ChatPage'));
 const HealthProfilePage = lazy(() => import('./patient/pages/HealthProfilePage'));
 const FollowUpPage = lazy(() => import('./patient/pages/FollowUpPage'));
@@ -80,12 +81,12 @@ function App() {
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             {/* 公共路由 */}
-            <Route path="/" element={<ChatPage />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/chat" element={<ChatPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
 
             {/* 患者端 */}
-            <Route path="/chat" element={<RequireAuth><ChatPage /></RequireAuth>} />
             <Route path="/health" element={<RequireRole role="patient"><HealthProfilePage /></RequireRole>} />
             <Route path="/followups" element={<RequireRole role="patient"><FollowUpPage /></RequireRole>} />
 

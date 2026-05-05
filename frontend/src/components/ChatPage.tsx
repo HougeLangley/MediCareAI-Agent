@@ -102,14 +102,20 @@ export default function ChatPage() {
       };
       setMessages((prev) => [...prev, userMsg]);
 
-      setIsStreaming(true);
-      const agentMsgId = generateId();
-      let content = '';
-      let structured: DiagnosisReport | undefined;
+    setIsStreaming(true);
+    const agentMsgId = generateId();
+    let content = '';
+    let structured: DiagnosisReport | undefined;
 
-      try {
-        await agentApi.streamDiagnose(
-          { message: text, session_id: currentSessionId },
+    // Build patient history from previous messages for context
+    const patientHistory = messages
+      .filter(m => m.role === 'user' || m.role === 'agent')
+      .map(m => `${m.role === 'user' ? '患者' : '医生'}: ${m.content}`)
+      .join('\n');
+
+    try {
+      await agentApi.streamDiagnose(
+        { message: text, session_id: currentSessionId, patient_history: patientHistory },
           (event: SSEEvent) => {
             switch (event.event) {
               case 'thinking':

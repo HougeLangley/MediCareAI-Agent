@@ -104,7 +104,7 @@ const riskMap: Record<string, { label: string; color: 'default' | 'primary' | 's
 
 export default function DoctorCases() {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState<PatientSummary[]>(demoPatients);
+  const [patients, setPatients] = useState<PatientSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterTag>('all');
   const [search, setSearch] = useState('');
@@ -114,10 +114,10 @@ export default function DoctorCases() {
     setLoading(true);
     listPatients()
       .then((data) => {
-        if (mounted) setPatients(data.length ? data : demoPatients);
+        if (mounted) setPatients(data);
       })
       .catch(() => {
-        if (mounted) setPatients(demoPatients);
+        if (mounted) setPatients([]);
       })
       .finally(() => {
         if (mounted) setLoading(false);

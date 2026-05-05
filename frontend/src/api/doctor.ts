@@ -1,8 +1,6 @@
 /** 医生端 API 服务层 */
 
-import { API_BASE } from './client';
-
-import { authHeaders } from './client';
+import { API_BASE, authHeaders } from './client';
 
 export interface PatientSummary {
   id: string;

@@ -152,8 +152,6 @@ export default function CaseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [caseData, setCaseData] = useState<typeof MOCK_CASE | null>(null);
   const [error, setError] = useState('');
-
-  // Comments
   const [comments, setComments] = useState(MOCK_CASE.comments);
   const [commentInput, setCommentInput] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
@@ -172,17 +170,36 @@ export default function CaseDetailPage() {
       setLoading(true);
       setError('');
       try {
-        // 优先使用真实 API，失败时回退到演示数据
         const data = await getCaseDetail(caseId || '');
         if (!cancelled) {
-          // 合并演示数据中的扩展字段
-          setCaseData({ ...MOCK_CASE, ...data });
+          // Map backend timeline format to frontend format
+          const mappedTimeline = (data.timeline || []).map((t: any) => ({
+            label: t.type || t.intent || '事件',
+            date: t.time ? new Date(t.time).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+            description: t.summary || t.intent || '',
+          }));
+
+          // Build structured report from backend data if available
+          const structuredReport = data.structured_report || {
+            primary_diagnosis: data.diagnosis || '待诊断',
+            confidence: 'N/A',
+            differential_diagnoses: [],
+            suggested_exams: [],
+            key_findings: [],
+          };
+
+          setCaseData({
+            ...MOCK_CASE,
+            ...data,
+            timeline: mappedTimeline.length ? mappedTimeline : MOCK_CASE.timeline,
+            structured_report: structuredReport.primary_diagnosis ? structuredReport : MOCK_CASE.structured_report,
+            patient_info: MOCK_CASE.patient_info, // Keep demo patient info until backend provides it
+          });
           if (data.comments) setComments(data.comments);
         }
-      } catch {
+      } catch (err) {
         if (!cancelled) {
-          setCaseData(MOCK_CASE);
-          setComments(MOCK_CASE.comments);
+          setError('加载病例详情失败，请稍后重试');
         }
       } finally {
         if (!cancelled) setLoading(false);

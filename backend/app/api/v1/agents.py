@@ -266,32 +266,37 @@ async def get_session(
 # Streaming SSE endpoints (backend-ready, frontend to integrate later)
 # ---------------------------------------------------------------------------
 
-@router.post("/route/stream")
+@router.get("/route/stream")
 async def route_stream(
-    req: RouteRequest,
-    ctx: CurrentUserContext,
+    message: str,
+    patient_id: str | None = None,
+    patient_history: str | None = None,
+    provider: str | None = None,
+    ctx: CurrentUserContext = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
-    """MasterAgent intent classification + streaming response via SSE.
+    """MasterAgent intent classification + streaming response via SSE (GET for EventSource).
 
-    Backend-ready SSE endpoint. Frontend can connect and receive:
-    1. intent classification result (JSON)
-    2. streaming LLM response chunks
-    3. [DONE] marker
+    Frontend connects via:
+        const es = new EventSource(`/api/v1/agents/route/stream?message=...`)
+
+    Events:
+        1. intent classification result (JSON)
+        2. streaming LLM response chunks
+        3. [DONE] marker
     """
     async def event_generator():
         # Step 1: Intent classification (non-streaming)
-        master = AgentOrchestrator(provider=req.provider)
-        intent_result = await master.master.classify_intent(req.message)
+        master = AgentOrchestrator(provider=provider)
+        actual_patient_id = patient_id or (str(ctx.user.id) if ctx.user else None)
+        intent_result = await master.master.classify_intent(message)
         intent = intent_result.get("intent", "diagnosis")
 
         yield f"event: intent\ndata: {json.dumps(intent_result)}\n\n"
 
         # Step 2: Streaming response via LLM
-        patient_id = req.patient_id or (str(ctx.user.id) if ctx.user else None)
-
         async with async_session_maker() as db_stream:
-            llm = LLMService(provider=req.provider, platform=ctx.platform, db=db_stream)
+            llm = LLMService(provider=provider, platform=ctx.platform, db=db_stream)
 
             system_prompt = (
                 "You are MediCareAI-Agent, a medical AI assistant. "
@@ -299,9 +304,9 @@ async def route_stream(
                 "Always include a disclaimer that this is not a substitute for professional medical advice."
             )
 
-            messages = [{"role": "user", "content": req.message}]
-            if req.patient_history:
-                messages.insert(0, {"role": "system", "content": f"Patient history: {req.patient_history}"})
+            messages = [{"role": "user", "content": message}]
+            if patient_history:
+                messages.insert(0, {"role": "system", "content": f"Patient history: {patient_history}"})
 
             try:
                 async for chunk in llm.chat_stream(

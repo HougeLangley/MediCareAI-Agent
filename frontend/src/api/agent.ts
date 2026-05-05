@@ -114,20 +114,30 @@ export async function chat(
 
 /**
  * 流式对话 (SSE)
- * GET /api/v1/agent/chat/stream
- * 文档定义事件类型: thinking / tool_call / tool_result / structured / text / error / complete
+ * GET /api/v1/agents/route/stream
+ * 事件类型: intent / text / error / complete
  */
 export function streamDiagnose(
-  payload: { message: string; session_id?: string },
+  payload: { message: string; session_id?: string; patient_history?: string },
   onEvent: (event: SSEEvent) => void
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const params = new URLSearchParams();
     params.set('message', payload.message);
     if (payload.session_id) params.set('session_id', payload.session_id);
+    if (payload.patient_history) params.set('patient_history', payload.patient_history);
 
-    const url = `${API_BASE}/agent/chat/stream?${params.toString()}`;
+    const url = `${API_BASE}/agents/route/stream?${params.toString()}`;
     const eventSource = new EventSource(url);
+
+    eventSource.addEventListener('intent', (e) => {
+      try {
+        const parsed = JSON.parse((e as MessageEvent).data);
+        onEvent({ event: 'thinking', data: parsed });
+      } catch {
+        onEvent({ event: 'thinking', data: { content: (e as MessageEvent).data } });
+      }
+    });
 
     eventSource.onmessage = (e) => {
       try {
@@ -142,7 +152,13 @@ export function streamDiagnose(
           reject(new Error(parsed.data?.message || 'SSE error'));
         }
       } catch {
-        onEvent({ event: 'text', data: { content: e.data } });
+        if (e.data === '[DONE]') {
+          onEvent({ event: 'complete', data: {} });
+          eventSource.close();
+          resolve();
+        } else {
+          onEvent({ event: 'text', data: { text: e.data } });
+        }
       }
     };
 
