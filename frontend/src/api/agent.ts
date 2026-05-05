@@ -129,7 +129,7 @@ export async function chat(
 /**
  * 流式对话 (SSE)
  * GET /api/v1/agents/route/stream
- * 事件类型: intent / text / error / complete
+ * 事件类型: intent / agent_switch / thinking / tool_call / tool_result / text / error / complete
  */
 export function streamDiagnose(
   payload: { message: string; session_id?: string; patient_history?: string },
@@ -150,50 +150,51 @@ export function streamDiagnose(
     const url = `${API_BASE}/agents/route/stream?${params.toString()}`;
     const eventSource = new EventSource(url);
 
-    eventSource.addEventListener('intent', (e) => {
-      try {
-        const parsed = JSON.parse((e as MessageEvent).data);
-        onEvent({ event: 'thinking', data: parsed });
-      } catch {
-        onEvent({ event: 'thinking', data: { content: (e as MessageEvent).data } });
-      }
+    // 处理命名事件
+    const namedEvents: SSEEventType[] = ['intent', 'agent_switch', 'thinking', 'tool_call', 'tool_result', 'complete', 'error'];
+    namedEvents.forEach(eventName => {
+      eventSource.addEventListener(eventName, (e) => {
+        try {
+          const parsed = JSON.parse((e as MessageEvent).data);
+          onEvent({ event: eventName, data: parsed });
+          if (eventName === 'complete') {
+            eventSource.close();
+            resolve();
+          }
+          if (eventName === 'error') {
+            eventSource.close();
+            reject(new Error(parsed.message || 'SSE error'));
+          }
+        } catch {
+          onEvent({ event: eventName, data: { raw: (e as MessageEvent).data } });
+        }
+      });
     });
 
+    // 默认消息处理（无事件名的数据，通常是流式文本片段）
     eventSource.onmessage = (e) => {
       try {
         const parsed = JSON.parse(e.data);
-        onEvent({ event: (parsed.event || 'text') as SSEEvent['event'], data: parsed.data || parsed });
-        if (parsed.event === 'complete') {
-          eventSource.close();
-          resolve();
-        }
-        if (parsed.event === 'error') {
-          eventSource.close();
-          reject(new Error(parsed.data?.message || 'SSE error'));
-        }
-      } catch {
-        if (e.data === '[DONE]') {
-          onEvent({ event: 'complete', data: {} });
-          eventSource.close();
-          resolve();
+        // 如果是带 event 字段的 JSON
+        if (parsed.event) {
+          onEvent({ event: parsed.event as SSEEventType, data: parsed.data || parsed });
+          if (parsed.event === 'complete') {
+            eventSource.close();
+            resolve();
+          }
+          if (parsed.event === 'error') {
+            eventSource.close();
+            reject(new Error(parsed.data?.message || 'SSE error'));
+          }
         } else {
+          // 纯文本片段
           onEvent({ event: 'text', data: { text: e.data } });
         }
+      } catch {
+        // 非 JSON 数据，当作文本片段
+        onEvent({ event: 'text', data: { text: e.data } });
       }
     };
-
-    eventSource.addEventListener('complete', (e) => {
-      onEvent({ event: 'complete', data: JSON.parse((e as MessageEvent).data) });
-      eventSource.close();
-      resolve();
-    });
-
-    eventSource.addEventListener('error', (e) => {
-      const data = (e as MessageEvent).data;
-      onEvent({ event: 'error', data: data ? JSON.parse(data) : { message: 'SSE error' } });
-      eventSource.close();
-      reject(new Error('SSE stream error'));
-    });
 
     eventSource.onerror = () => {
       eventSource.close();

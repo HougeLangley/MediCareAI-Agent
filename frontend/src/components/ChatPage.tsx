@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import type { ChatMessageItem, ChatSession, GuestStatus, SSEEvent, DiagnosisReport } from '../types/agent';
+import type { ChatMessageItem, ChatSession, GuestStatus, SSEEvent, DiagnosisReport, WorkflowStep } from '../types/agent';
 import { agentApi } from '../api/agent';
 import { getToken } from '../api/client';
 import Sidebar from './Sidebar';
@@ -124,75 +124,150 @@ export default function ChatPage() {
       };
       setMessages((prev) => [...prev, userMsg]);
 
-    setIsStreaming(true);
-    const agentMsgId = generateId();
-    let content = '';
-    let structured: DiagnosisReport | undefined;
+      setIsStreaming(true);
+      const agentMsgId = generateId();
+      let content = '';
+      let structured: DiagnosisReport | undefined;
+      const workflowSteps: WorkflowStep[] = [];
 
-    // Build patient history from previous messages for context
-    const patientHistory = messages
-      .filter(m => m.role === 'user' || m.role === 'agent')
-      .map(m => `${m.role === 'user' ? '患者' : '医生'}: ${m.content}`)
-      .join('\n');
+      // Build patient history from previous messages for context
+      const patientHistory = messages
+        .filter(m => m.role === 'user' || m.role === 'agent')
+        .map(m => `${m.role === 'user' ? '患者' : '医生'}: ${m.content}`)
+        .join('\n');
 
-    try {
-      await agentApi.streamDiagnose(
-        { message: text, session_id: currentSessionId, patient_history: patientHistory },
+      // 工作流步骤辅助函数
+      const addStep = (step: Omit<WorkflowStep, 'id' | 'timestamp'>) => {
+        const newStep: WorkflowStep = { ...step, id: generateId(), timestamp: new Date() };
+        workflowSteps.push(newStep);
+        setMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === agentMsgId);
+          if (idx === -1) {
+            return [...prev, { id: agentMsgId, role: 'agent', content: '', timestamp: new Date(), isStreaming: true, workflowSteps: [...workflowSteps] }];
+          }
+          const next = prev.slice();
+          next[idx] = { ...next[idx], workflowSteps: [...workflowSteps] };
+          return next;
+        });
+      };
+
+      try {
+        await agentApi.streamDiagnose(
+          { message: text, session_id: currentSessionId, patient_history: patientHistory },
           (event: SSEEvent) => {
             switch (event.event) {
-              case 'thinking':
-                setMessages((prev) => {
-                  const idx = prev.findIndex((m) => m.id === agentMsgId);
-                  const next = prev.slice();
-                  if (idx === -1) {
-                    next.push({ id: agentMsgId, role: 'agent', content: '思考中...', timestamp: new Date(), isStreaming: true });
-                  } else {
-                    next[idx] = { ...next[idx], isStreaming: true };
-                  }
-                  return next;
+              case 'intent': {
+                const intent = event.data?.intent as string || 'diagnosis';
+                const confidence = event.data?.confidence as string || 'medium';
+                const reasoning = event.data?.reasoning as string || '';
+                addStep({
+                  type: 'intent',
+                  status: 'done',
+                  title: `MasterAgent 识别到意图: ${intent}`,
+                  detail: `置信度: ${confidence}${reasoning ? ` | ${reasoning}` : ''}`,
                 });
                 break;
-              case 'text':
+              }
+              case 'agent_switch': {
+                const agentDisplay = event.data?.agent_display as string || event.data?.agent as string || '未知';
+                addStep({
+                  type: 'agent_switch',
+                  status: 'done',
+                  title: `已切换到 ${agentDisplay}`,
+                  detail: event.data?.message as string || '',
+                });
+                break;
+              }
+              case 'thinking': {
+                const stepName = event.data?.step as string || 'thinking';
+                const messageText = event.data?.message as string || '正在分析...';
+                addStep({
+                  type: 'thinking',
+                  status: 'done',
+                  title: messageText,
+                  detail: event.data?.detail as string || '',
+                });
+                break;
+              }
+              case 'tool_call': {
+                const toolName = event.data?.tool as string || '未知工具';
+                addStep({
+                  type: 'tool_call',
+                  status: 'done',
+                  title: event.data?.message as string || `正在调用 ${toolName}...`,
+                  toolName,
+                  toolParams: (event.data?.params as Record<string, unknown>) || {},
+                });
+                break;
+              }
+              case 'tool_result': {
+                const toolName = event.data?.tool as string || '未知工具';
+                addStep({
+                  type: 'tool_result',
+                  status: 'done',
+                  title: event.data?.message as string || `${toolName} 执行完成`,
+                  toolName,
+                  toolResult: event.data?.result,
+                });
+                break;
+              }
+              case 'text': {
                 content += event.data?.text || '';
                 setMessages((prev) => {
                   const idx = prev.findIndex((m) => m.id === agentMsgId);
-                  if (idx === -1) return prev;
+                  if (idx === -1) {
+                    return [...prev, { id: agentMsgId, role: 'agent', content, timestamp: new Date(), isStreaming: true, workflowSteps: [...workflowSteps] }];
+                  }
                   const next = prev.slice();
-                  next[idx] = { ...next[idx], content, isStreaming: true };
+                  next[idx] = { ...next[idx], content, isStreaming: true, workflowSteps: [...workflowSteps] };
                   return next;
                 });
                 break;
+              }
               case 'structured':
                 structured = event.data as unknown as DiagnosisReport;
                 setMessages((prev) => {
                   const idx = prev.findIndex((m) => m.id === agentMsgId);
                   if (idx === -1) return prev;
                   const next = prev.slice();
-                  next[idx] = { ...next[idx], structured, content: content || next[idx].content || '已生成诊断报告' };
+                  next[idx] = { ...next[idx], structured, content: content || next[idx].content || '已生成诊断报告', workflowSteps: [...workflowSteps] };
                   return next;
                 });
                 break;
-              case 'error':
+              case 'error': {
+                const errorMsg = event.data?.message as string || event.data?.error as string || '服务异常';
+                addStep({
+                  type: 'thinking',
+                  status: 'error',
+                  title: `错误: ${errorMsg}`,
+                });
                 setMessages((prev) => {
                   const idx = prev.findIndex((m) => m.id === agentMsgId);
                   if (idx === -1) {
-                    return [...prev, { id: agentMsgId, role: 'agent', content: `❌ 错误: ${event.data?.message || '服务异常'}`, timestamp: new Date() }];
+                    return [...prev, { id: agentMsgId, role: 'agent', content: `❌ 错误: ${errorMsg}`, timestamp: new Date(), workflowSteps: [...workflowSteps] }];
                   }
                   const next = prev.slice();
-                  next[idx] = { ...next[idx], content: `❌ 错误: ${event.data?.message || '服务异常'}`, isStreaming: false };
+                  next[idx] = { ...next[idx], content: `❌ 错误: ${errorMsg}`, isStreaming: false, workflowSteps: [...workflowSteps] };
                   return next;
                 });
                 break;
-              case 'complete':
+              }
+              case 'complete': {
+                addStep({
+                  type: 'complete',
+                  status: 'done',
+                  title: event.data?.message as string || '✅ 响应完成',
+                });
                 setMessages((prev) => {
                   const idx = prev.findIndex((m) => m.id === agentMsgId);
                   if (idx === -1) return prev;
                   const next = prev.slice();
-                  next[idx] = { ...next[idx], isStreaming: false };
+                  next[idx] = { ...next[idx], isStreaming: false, workflowSteps: [...workflowSteps] };
                   return next;
                 });
                 setIsStreaming(false);
                 break;
+              }
             }
           }
         );

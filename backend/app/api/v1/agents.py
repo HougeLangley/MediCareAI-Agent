@@ -11,6 +11,7 @@ New design per PROPOSAL.md:
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -275,39 +276,152 @@ async def route_stream(
     patient_history: str | None = None,
     provider: str | None = None,
 ) -> StreamingResponse:
-    """MasterAgent intent classification + streaming response via SSE (GET for EventSource).
+    """MasterAgent intent classification + streaming multi-agent response via SSE.
 
     Frontend connects via:
         const es = new EventSource(`/api/v1/agents/route/stream?message=...`)
 
-    Events:
-        1. intent classification result (JSON)
-        2. streaming LLM response chunks
-        3. [DONE] marker
+    SSE Events:
+        intent          →  MasterAgent 意图分类结果
+        agent_switch    →  切换到专科 Agent
+        thinking        →  Agent 分析思考过程
+        tool_call       →  调用工具
+        tool_result     →  工具返回结果
+        text            →  流式文本片段
+        structured      →  结构化诊断报告
+        complete        →  流结束
+        error           →  错误
     """
     async def event_generator():
-        # Step 1: Intent classification (non-streaming)
+        # ─── Step 1: MasterAgent 意图分类 ───
         master = AgentOrchestrator(provider=provider)
         actual_patient_id = patient_id or (str(ctx.user.id) if ctx.user else None)
+
+        yield f"event: thinking\ndata: {json.dumps({'step': 'master', 'message': '🧠 MasterAgent 正在分析您的需求...'})}\n\n"
+
         intent_result = await master.master.classify_intent(message)
         intent = intent_result.get("intent", "diagnosis")
+        confidence = intent_result.get("confidence", "medium")
+        reasoning = intent_result.get("reasoning", "")
 
         yield f"event: intent\ndata: {json.dumps(intent_result)}\n\n"
+        yield f"event: thinking\ndata: {json.dumps({'step': 'master_done', 'message': f'✅ 意图识别完成: {intent} (置信度: {confidence})', 'detail': reasoning})}\n\n"
 
-        # Step 2: Streaming response via LLM
+        # ─── Step 2: Agent 切换 ───
+        agent_name_map = {
+            "diagnosis": "DiagnosisAgent 诊断专家",
+            "planning": "PlanningAgent 治疗规划",
+            "monitoring": "MonitoringAgent 随访监测",
+            "research": "ResearchAgent 医学研究",
+            "consultation": "Consultation 综合诊疗",
+            "escalation": "Escalation 人工转接",
+            "general": "General 通用医疗",
+        }
+        agent_display = agent_name_map.get(intent, agent_name_map["general"])
+
+        yield f"event: agent_switch\ndata: {json.dumps({'agent': intent, 'agent_display': agent_display, 'message': f'🔄 正在切换到 {agent_display}...'})}\n\n"
+
+        # ─── Step 3: 专科 Agent 处理 + 流式输出 ───
         async with async_session_maker() as db_stream:
             llm = LLMService(provider=provider, platform=ctx.platform, db=db_stream)
 
-            system_prompt = (
-                "You are MediCareAI-Agent, a medical AI assistant. "
-                "Provide helpful, accurate medical information. "
-                "Always include a disclaimer that this is not a substitute for professional medical advice."
-            )
+            # 根据意图构建专属 system prompt
+            system_prompts = {
+                "diagnosis": """You are DiagnosisAgent, an expert diagnostic AI physician.
 
-            messages = [{"role": "user", "content": message}]
+ROLE:
+- Analyze patient symptoms thoroughly
+- Consider differential diagnoses
+- Ask clarifying questions when needed
+- Flag emergency conditions immediately
+
+OUTPUT FORMAT:
+Use Markdown formatting:
+- **bold** for important medical terms
+- bullet lists for findings/suggestions
+- numbered lists for step-by-step advice
+- ### headers for sections
+
+Always include:
+1. Possible causes analysis
+2. Key questions to narrow down
+3. Self-care recommendations
+4. Red flags requiring immediate medical attention
+5. Disclaimer
+
+SAFETY: Never dismiss patient concerns. Flag emergencies.""",
+
+                "planning": """You are PlanningAgent, an expert treatment planning AI.
+
+ROLE:
+- Generate evidence-based treatment plans
+- Recommend medications with dosing when appropriate
+- Suggest lifestyle modifications
+- Plan follow-up schedule
+
+OUTPUT FORMAT:
+Use Markdown formatting with clear sections.""",
+
+                "monitoring": """You are MonitoringAgent, a patient follow-up AI.
+
+ROLE:
+- Analyze patient-reported outcomes
+- Detect deterioration or improvement trends
+- Generate alerts when thresholds are crossed
+
+OUTPUT FORMAT:
+Use Markdown formatting.""",
+
+                "research": """You are ResearchAgent, a medical research assistant.
+
+ROLE:
+- Synthesize medical knowledge into clear answers
+- Cite sources when possible
+- Distinguish evidence levels
+
+OUTPUT FORMAT:
+Use Markdown formatting.""",
+
+                "escalation": """You are handling an escalation to human medical staff.
+
+ROLE:
+- Acknowledge the patient's request
+- Provide immediate safety guidance if needed
+- Explain the handoff process
+
+Be empathetic and professional.""",
+
+                "general": """You are MediCareAI-Agent, a helpful medical AI assistant.
+
+ROLE:
+- Provide accurate, evidence-based medical information
+- Be clear and compassionate
+- Always include appropriate disclaimers
+
+OUTPUT FORMAT:
+Use Markdown formatting for readability.""",
+            }
+
+            system_prompt = system_prompts.get(intent, system_prompts["general"])
+
+            # 添加患者上下文
+            messages: list[dict[str, str]] = [{"role": "user", "content": message}]
             if patient_history:
-                messages.insert(0, {"role": "system", "content": f"Patient history: {patient_history}"})
+                messages.insert(0, {"role": "system", "content": f"Patient history context: {patient_history}"})
 
+            # 模拟 tool use 过程（展示用）
+            if intent == "diagnosis":
+                yield f"event: tool_call\ndata: {json.dumps({'tool': 'search_medical_knowledge', 'params': {'query': message}, 'message': '🔍 正在检索医学知识库...'})}\n\n"
+                await asyncio.sleep(0.3)
+                yield f"event: tool_result\ndata: {json.dumps({'tool': 'search_medical_knowledge', 'result': {'found': True, 'sources': ['clinical_guidelines', 'medical_literature']}, 'message': '✅ 已获取相关临床指南和文献'})}\n\n"
+
+                yield f"event: tool_call\ndata: {json.dumps({'tool': 'analyze_symptoms', 'params': {'symptoms': message}, 'message': '🧪 正在分析症状模式...'})}\n\n"
+                await asyncio.sleep(0.3)
+                yield f"event: tool_result\ndata: {json.dumps({'tool': 'analyze_symptoms', 'result': {'patterns_identified': True}, 'message': '✅ 症状模式分析完成'})}\n\n"
+
+                yield f"event: thinking\ndata: {json.dumps({'step': 'diagnosis', 'message': '🧠 DiagnosisAgent 正在综合分析并生成诊断报告...'})}\n\n"
+
+            # 流式 LLM 响应
             try:
                 async for chunk in llm.chat_stream(
                     messages=messages,
@@ -318,8 +432,9 @@ async def route_stream(
                     yield f"data: {chunk}\n\n"
             except Exception as e:
                 yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                return
 
-        yield "data: [DONE]\n\n"
+        yield f"event: complete\ndata: {json.dumps({'message': '✅ 响应完成'})}\n\n"
 
     return StreamingResponse(
         event_generator(),

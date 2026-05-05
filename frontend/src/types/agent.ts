@@ -5,6 +5,8 @@
 
 /** SSE 事件类型 */
 export type SSEEventType =
+  | 'intent'
+  | 'agent_switch'
   | 'thinking'
   | 'tool_call'
   | 'tool_result'
@@ -17,6 +19,20 @@ export type SSEEventType =
 export interface SSEEvent {
   event: SSEEventType;
   data: Record<string, unknown>;
+}
+
+/** Agent 工作流步骤 */
+export interface WorkflowStep {
+  id: string;
+  type: 'intent' | 'agent_switch' | 'tool_call' | 'tool_result' | 'thinking' | 'complete';
+  status: 'pending' | 'running' | 'done' | 'error';
+  title: string;
+  detail?: string;
+  timestamp: Date;
+  icon?: string;
+  toolName?: string;
+  toolParams?: Record<string, unknown>;
+  toolResult?: unknown;
 }
 
 /** 诊断报告 Schema */
@@ -48,6 +64,7 @@ export interface ChatMessageItem {
     params: Record<string, unknown>;
     result?: unknown;
   }>;
+  workflowSteps?: WorkflowStep[];
   timestamp: Date;
   isStreaming?: boolean;
 }
