@@ -6,7 +6,8 @@ import {
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
-import { listSettings, createSetting, batchUpdateSettings } from '../../api/admin';
+import LockIcon from '@mui/icons-material/Lock';
+import { listSettings, createSetting, batchUpdateSettings, changePassword } from '../../api/admin';
 import type { SystemSetting, SystemSettingCreate } from '../../types/admin';
 import { flexRowGap05 } from '../../styles/sxUtils';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -117,6 +118,47 @@ export default function SystemSettingsPage() {
     value_type: 'string',
     options: '',
   });
+
+  // 密码修改状态
+  const [pwdOld, setPwdOld] = useState('');
+  const [pwdNew, setPwdNew] = useState('');
+  const [pwdConfirm, setPwdConfirm] = useState('');
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState('');
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwdError('');
+    setPwdSuccess('');
+
+    if (pwdNew.length < 8) {
+      setPwdError('新密码至少 8 位');
+      return;
+    }
+    if (pwdNew !== pwdConfirm) {
+      setPwdError('两次新密码不一致');
+      return;
+    }
+    if (!pwdOld) {
+      setPwdError('请输入当前密码');
+      return;
+    }
+
+    setPwdLoading(true);
+    try {
+      await changePassword({ old_password: pwdOld, new_password: pwdNew });
+      setPwdSuccess('管理员密码修改成功，请使用新密码重新登录');
+      setPwdOld('');
+      setPwdNew('');
+      setPwdConfirm('');
+      setTimeout(() => setPwdSuccess(''), 5000);
+    } catch (e: unknown) {
+      setPwdError((e as Error).message);
+    } finally {
+      setPwdLoading(false);
+    }
+  };
 
   // 数据获取：内联到 effect 中
   useEffect(() => {
@@ -288,6 +330,75 @@ export default function SystemSettingsPage() {
           {success}
         </Alert>
       )}
+
+      {/* 管理员密码修改卡片 */}
+      <Card variant="outlined" sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <LockIcon sx={{ color: '#EF4444' }} />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              管理员密码修改
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            为了保障系统安全，建议定期更换管理员密码。密码至少 8 位字符。
+          </Typography>
+
+          {pwdError && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setPwdError('')}>
+              {pwdError}
+            </Alert>
+          )}
+          {pwdSuccess && (
+            <Alert severity="success" sx={{ mb: 2 }} onClose={() => setPwdSuccess('')}>
+              {pwdSuccess}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleChangePassword} sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 480 }}>
+            <TextField
+              label="当前密码"
+              type="password"
+              size="small"
+              value={pwdOld}
+              onChange={(e) => setPwdOld(e.target.value)}
+              required
+              fullWidth
+            />
+            <TextField
+              label="新密码"
+              type="password"
+              size="small"
+              value={pwdNew}
+              onChange={(e) => setPwdNew(e.target.value)}
+              required
+              fullWidth
+              helperText="至少 8 位"
+            />
+            <TextField
+              label="确认新密码"
+              type="password"
+              size="small"
+              value={pwdConfirm}
+              onChange={(e) => setPwdConfirm(e.target.value)}
+              required
+              fullWidth
+            />
+            <Box>
+              <Button
+                type="submit"
+                variant="contained"
+                size="small"
+                disabled={pwdLoading}
+                startIcon={pwdLoading ? <CircularProgress size={16} color="inherit" /> : <LockIcon />}
+                sx={{ bgcolor: '#EF4444', '&:hover': { bgcolor: '#DC2626' } }}
+              >
+                修改密码
+              </Button>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Category Tabs */}
       <Paper sx={{ mb: 2 }}>
