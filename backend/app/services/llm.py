@@ -154,12 +154,16 @@ class LLMService:
         platform: str | None = None,
         db: AsyncSession | None = None,
     ) -> None:
-        self.provider = provider or "openai"
+        self.provider = provider
         self.platform = platform
         self._db = db
 
     async def _get_client(self) -> AsyncOpenAI:
         """Get configured AsyncOpenAI client."""
+        # Auto-resolve provider if not specified
+        if self.provider is None and self._db is not None:
+            self.provider = await _get_default_provider(self._db, self.platform)
+
         config = await _get_provider_config(self._db, self.provider, self.platform)
         if not config.get("api_key"):
             raise ValueError(
@@ -177,6 +181,9 @@ class LLMService:
     async def _get_default_model(self) -> str:
         """Get default model for current provider."""
         try:
+            # Auto-resolve provider if not specified
+            if self.provider is None and self._db is not None:
+                self.provider = await _get_default_provider(self._db, self.platform)
             config = await _get_provider_config(self._db, self.provider, self.platform)
             return config.get("default_model", "")
         except ValueError:

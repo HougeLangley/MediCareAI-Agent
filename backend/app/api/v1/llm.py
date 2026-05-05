@@ -119,7 +119,10 @@ async def llm_health(
 ) -> dict:
     """Check LLM provider connectivity."""
     try:
-        service = LLMService(provider=provider or "openai", platform=current_user.platform, db=db)
+        if provider:
+            service = LLMService(provider=provider, platform=current_user.platform, db=db)
+        else:
+            service = await get_llm_service(db, platform=current_user.platform)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
