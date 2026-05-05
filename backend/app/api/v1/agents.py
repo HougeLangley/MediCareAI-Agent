@@ -269,11 +269,11 @@ async def get_session(
 @router.get("/route/stream")
 async def route_stream(
     message: str,
+    ctx: CurrentUserContext,
+    db: AsyncSession = Depends(get_db),
     patient_id: str | None = None,
     patient_history: str | None = None,
     provider: str | None = None,
-    ctx: CurrentUserContext = Depends(),
-    db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """MasterAgent intent classification + streaming response via SSE (GET for EventSource).
 
