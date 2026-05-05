@@ -421,7 +421,7 @@ export async function listNotifications(params?: {
   is_read?: boolean;
   search?: string;
 }): Promise<NotificationListResponse> {
-  const url = new URL(`${API_BASE}/admin/notifications`, window.location.origin);
+  const url = new URL(`${API_BASE}/admin/notifications/`, window.location.origin);
   if (params?.page) url.searchParams.set('page', String(params.page));
   if (params?.page_size) url.searchParams.set('page_size', String(params.page_size));
   if (params?.notification_type) url.searchParams.set('notification_type', params.notification_type);

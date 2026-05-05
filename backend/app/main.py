@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from sqlalchemy import select
 
 from app.api.v1 import router as v1_router
@@ -86,6 +87,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Trust X-Forwarded-Proto from Nginx so FastAPI generates https:// redirect URLs
+app.add_middleware(
+    ProxyHeadersMiddleware,
+    trusted_hosts=["openmedicareagent.online", "www.openmedicareagent.online", "*"],
 )
 
 app.include_router(v1_router, prefix="/api/v1")
