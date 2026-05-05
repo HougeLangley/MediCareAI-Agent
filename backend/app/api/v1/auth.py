@@ -356,7 +356,7 @@ async def get_guest_status(
         "interaction_count": guest.message_count,
         "max_interactions": guest.max_messages,
         "remaining": remaining,
-        "can_interact": remaining > 0 and not guest.is_blocked,
+        "can_interact": remaining > 0,
         "expires_at": guest.expires_at.isoformat() if guest.expires_at else None,
     }
 
