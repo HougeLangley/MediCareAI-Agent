@@ -23,6 +23,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import async_session_maker
 from app.models.agent import AgentSession, AgentSessionStatus, AgentSessionType, AgentTask
+from app.models.interview import (
+    InterviewState,
+    QuestionTemplate,
+    get_next_question,
+    is_interview_sufficient,
+)
 from app.services.llm import LLMResponse, LLMService
 from app.tools.registry import GLOBAL_REGISTRY
 
@@ -356,6 +362,76 @@ SAFETY:
                 session.tool_calls = tool_calls
                 if structured:
                     session.structured_output = structured
+                session.updated_at = datetime.now(timezone.utc)
+                await db.commit()
+
+    # ------------------------------------------------------------------
+    # Interview / Multi-turn questioning
+    # ------------------------------------------------------------------
+
+    async def interview(
+        self,
+        session_id: str,
+        collected_info: dict[str, Any] | None = None,
+    ) -> tuple[QuestionTemplate | None, InterviewState]:
+        """Determine the next interview question based on collected info.
+
+        Returns:
+            (next_question, updated_state) — next_question is None if interview is complete.
+        """
+        # Load existing state from session
+        state = InterviewState()
+        async with async_session_maker() as db:
+            from sqlalchemy import select
+            stmt = select(AgentSession).where(AgentSession.id == uuid.UUID(session_id))
+            result = await db.execute(stmt)
+            session = result.scalar_one_or_none()
+            if session and session.context:
+                interview_data = session.context.get("interview")
+                if interview_data:
+                    state = InterviewState.from_dict(interview_data)
+
+        # Merge newly provided info
+        if collected_info:
+            state.collected_info.update(collected_info)
+            for key in collected_info:
+                if key not in state.asked_questions:
+                    state.asked_questions.append(key)
+
+        # Check if we have enough info
+        if is_interview_sufficient(state):
+            state.is_sufficient = True
+            state.current_question_id = None
+            await self._update_interview_state(session_id, state)
+            return None, state
+
+        # Get next question
+        next_q = get_next_question(state)
+        if next_q is None:
+            state.is_sufficient = True
+            state.current_question_id = None
+            await self._update_interview_state(session_id, state)
+            return None, state
+
+        state.current_question_id = next_q.question_id
+        await self._update_interview_state(session_id, state)
+        return next_q, state
+
+    async def _update_interview_state(
+        self,
+        session_id: str,
+        state: InterviewState,
+    ) -> None:
+        """Persist interview state into AgentSession.context."""
+        async with async_session_maker() as db:
+            from sqlalchemy import select
+            stmt = select(AgentSession).where(AgentSession.id == uuid.UUID(session_id))
+            result = await db.execute(stmt)
+            session = result.scalar_one_or_none()
+            if session:
+                if session.context is None:
+                    session.context = {}
+                session.context["interview"] = state.to_dict()
                 session.updated_at = datetime.now(timezone.utc)
                 await db.commit()
 

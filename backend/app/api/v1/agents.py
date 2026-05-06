@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -23,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, CurrentUserContext, require_role
 from app.db.session import async_session_maker, get_db
-from app.models.agent import AgentSession, AgentSessionStatus
+from app.models.agent import AgentSession, AgentSessionStatus, AgentSessionType
 from app.models.user import User, UserRole
 from app.services.agents import AgentOrchestrator, DiagnosisAgent, MonitoringAgent, PlanningAgent
 from app.services.llm import LLMService
@@ -490,15 +491,53 @@ Use Markdown formatting for readability.""",
 
             # 真实工具调用 + 流式输出
             if intent == "diagnosis":
-                _msg_start = "\ud83e\udde0 DiagnosisAgent \u6b63\u5728\u542f\u52a8\u771f\u5b9e\u8bca\u65ad\u5206\u6790..."
+                # ─── Interview phase: collect info before diagnosis ───
+                # Create a session to persist interview state
+                session_id: str | None = None
+                try:
+                    new_session = await master._create_session(
+                        user_id=uuid.UUID(actual_patient_id) if actual_patient_id else None,
+                        session_type=AgentSessionType.DIAGNOSIS,
+                        intent="diagnosis",
+                    )
+                    if new_session:
+                        session_id = str(new_session.id)
+                except Exception:
+                    pass
+
+                diag_agent = DiagnosisAgent(provider=provider)
+
+                if session_id:
+                    try:
+                        next_q, state = await diag_agent.interview(session_id=session_id)
+                        if next_q:
+                            # Send progress summary
+                            yield f"event: interview_progress\ndata: {json.dumps({'collected': state.collected_info, 'asked_count': len(state.asked_questions)})}\n\n"
+                            # Send the question
+                            q_payload = {
+                                "question_id": next_q.question_id,
+                                "question": next_q.question,
+                                "type": next_q.type,
+                                "options": next_q.options,
+                                "hint": next_q.hint,
+                                "allow_skip": next_q.allow_skip,
+                            }
+                            yield f"event: question\ndata: {json.dumps(q_payload)}\n\n"
+                            yield f"event: complete\ndata: {json.dumps({'status': 'waiting_for_answer', 'session_id': session_id})}\n\n"
+                            return
+                    except Exception:
+                        # Interview failed — fall through to direct diagnosis
+                        pass
+
+                _msg_start = "🧠 DiagnosisAgent 正在启动真实诊断分析..."
                 yield f"event: thinking\ndata: {json.dumps({'step': 'diagnosis', 'message': _msg_start})}\n\n"
 
                 try:
-                    diag_agent = DiagnosisAgent(provider=provider)
                     result = await diag_agent.analyze(
                         symptoms=message,
                         patient_id=actual_patient_id,
                         patient_history=patient_history,
+                        session_id=session_id,
                     )
 
                     # 流式展示真实工具调用记录
@@ -546,6 +585,127 @@ Use Markdown formatting for readability.""",
                 except Exception as e:
                     yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
                     return
+
+        yield f"event: complete\ndata: {json.dumps({'message': '✅ 响应完成'})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+    )
+
+
+class StreamContinueRequest(BaseModel):
+    """Continue an interview or diagnosis after user answers a question."""
+
+    session_id: str = Field(..., description="Agent session ID")
+    question_id: str = Field(..., description="ID of the question being answered")
+    answer: str = Field(..., description="User's answer")
+
+
+@router.post("/route/stream/continue")
+async def route_stream_continue(
+    req: StreamContinueRequest,
+    ctx: CurrentUserContext,
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Continue an interrupted interview/diagnosis stream after user answers.
+
+    SSE Events (same as /route/stream):
+        question          →  Next interview question
+        interview_progress →  Collected info summary
+        thinking          →  Agent thinking step
+        tool_call         →  Tool invocation
+        tool_result       →  Tool result
+        structured        →  Structured diagnosis report
+        text              →  Streaming text chunk
+        complete          →  Stream end
+        error             →  Error
+    """
+    async def event_generator():
+        # Look up the session
+        stmt = select(AgentSession).where(AgentSession.id == uuid.UUID(req.session_id))
+        result = await db.execute(stmt)
+        session = result.scalar_one_or_none()
+
+        if not session:
+            yield f"event: error\ndata: {json.dumps({'error': 'Session not found'})}\n\n"
+            return
+
+        diag_agent = DiagnosisAgent(provider=None)
+
+        # Advance interview with the new answer
+        try:
+            next_q, state = await diag_agent.interview(
+                session_id=req.session_id,
+                collected_info={req.question_id: req.answer},
+            )
+        except Exception as e:
+            yield f"event: error\ndata: {json.dumps({'error': f'Interview error: {e}'})}\n\n"
+            return
+
+        if next_q:
+            # More questions needed
+            yield f"event: interview_progress\ndata: {json.dumps({'collected': state.collected_info, 'asked_count': len(state.asked_questions)})}\n\n"
+            q_payload = {
+                "question_id": next_q.question_id,
+                "question": next_q.question,
+                "type": next_q.type,
+                "options": next_q.options,
+                "hint": next_q.hint,
+                "allow_skip": next_q.allow_skip,
+            }
+            yield f"event: question\ndata: {json.dumps(q_payload)}\n\n"
+            yield f"event: complete\ndata: {json.dumps({'status': 'waiting_for_answer', 'session_id': req.session_id})}\n\n"
+            return
+
+        # Interview complete — proceed to real diagnosis
+        _msg_start = "🧠 DiagnosisAgent 正在启动真实诊断分析..."
+        yield f"event: thinking\ndata: {json.dumps({'step': 'diagnosis', 'message': _msg_start})}\n\n"
+
+        try:
+            # Build enriched symptoms from collected interview info
+            collected = state.collected_info
+            enriched_symptoms = f"{session.intent or '患者主诉'}"
+            if collected:
+                details = ", ".join(f"{k}={v}" for k, v in collected.items())
+                enriched_symptoms += f"\n问诊信息: {details}"
+
+            result = await diag_agent.analyze(
+                symptoms=enriched_symptoms,
+                patient_id=str(session.user_id) if session.user_id else None,
+                session_id=req.session_id,
+            )
+
+            # Stream tool calls
+            if result.tool_calls_used:
+                for tc in result.tool_calls_used:
+                    tool_name = tc.get("tool", "unknown")
+                    args = tc.get("arguments", {})
+                    _tc_msg = f"🔍 正在执行 {tool_name}..."
+                    yield f"event: tool_call\ndata: {json.dumps({'tool': tool_name, 'params': args, 'message': _tc_msg})}\n\n"
+                    await asyncio.sleep(0.2)
+                    result_data = tc.get("result", {})
+                    _tr_msg = f"✅ {tool_name} 执行完成"
+                    yield f"event: tool_result\ndata: {json.dumps({'tool': tool_name, 'result': result_data, 'message': _tr_msg})}\n\n"
+
+            _msg_analyze = "🧠 DiagnosisAgent 正在综合分析并生成结构化报告..."
+            yield f"event: thinking\ndata: {json.dumps({'step': 'diagnosis', 'message': _msg_analyze})}\n\n"
+
+            if result.structured_output:
+                structured_data = result.structured_output.model_dump()
+                yield f"event: structured\ndata: {json.dumps(structured_data)}\n\n"
+
+                report_md = _diagnosis_report_to_markdown(structured_data)
+                for chunk in _chunk_text(report_md, chunk_size=80):
+                    yield f"event: text\ndata: {json.dumps({'text': chunk})}\n\n"
+            else:
+                content = result.content if isinstance(result.content, str) else json.dumps(result.content, ensure_ascii=False)
+                for chunk in _chunk_text(content, chunk_size=80):
+                    yield f"event: text\ndata: {json.dumps({'text': chunk})}\n\n"
+        except Exception as e:
+            _err_msg = f"诊断分析失败: {e}"
+            yield f"event: error\ndata: {json.dumps({'error': _err_msg})}\n\n"
+            return
 
         yield f"event: complete\ndata: {json.dumps({'message': '✅ 响应完成'})}\n\n"
 
