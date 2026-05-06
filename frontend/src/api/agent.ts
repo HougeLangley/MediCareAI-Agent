@@ -151,7 +151,7 @@ export function streamDiagnose(
     const eventSource = new EventSource(url);
 
     // 处理命名事件
-    const namedEvents: SSEEventType[] = ['intent', 'agent_switch', 'thinking', 'tool_call', 'tool_result', 'structured', 'text', 'complete', 'error'];
+    const namedEvents: SSEEventType[] = ['intent', 'agent_switch', 'thinking', 'tool_call', 'tool_result', 'structured', 'text', 'question', 'interview_progress', 'complete', 'error'];
     namedEvents.forEach(eventName => {
       eventSource.addEventListener(eventName, (e) => {
         try {
