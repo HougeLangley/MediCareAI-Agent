@@ -261,7 +261,7 @@ SAFETY:
 
                 if resp.tool_calls:
                     # Execute tools
-                    messages.append({
+                    assistant_msg: dict[str, Any] = {
                         "role": "assistant",
                         "content": resp.content or "",
                         "tool_calls": [
@@ -275,7 +275,10 @@ SAFETY:
                             }
                             for tc in resp.tool_calls
                         ],
-                    })
+                    }
+                    if resp.reasoning_content:
+                        assistant_msg["reasoning_content"] = resp.reasoning_content
+                    messages.append(assistant_msg)
 
                     for tc in resp.tool_calls:
                         result = await GLOBAL_REGISTRY.execute(

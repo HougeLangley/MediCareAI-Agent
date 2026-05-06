@@ -37,6 +37,7 @@ class LLMResponse:
     usage_completion_tokens: int
     finish_reason: str | None
     tool_calls: list[dict[str, Any]] | None = None
+    reasoning_content: str | None = None
 
 
 async def _get_provider_config(
@@ -244,6 +245,7 @@ class LLMService:
             usage_completion_tokens=usage.completion_tokens if usage else 0,
             finish_reason=choice.finish_reason,
             tool_calls=tool_calls,
+            reasoning_content=getattr(message, "reasoning_content", None),
         )
 
     async def chat_stream(
@@ -342,6 +344,7 @@ class LLMService:
             usage_completion_tokens=usage.completion_tokens if usage else 0,
             finish_reason=choice.finish_reason,
             tool_calls=tool_calls,
+            reasoning_content=getattr(message, "reasoning_content", None),
         )
 
     # ------------------------------------------------------------------
