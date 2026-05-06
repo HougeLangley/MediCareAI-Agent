@@ -492,10 +492,12 @@ Use Markdown formatting for readability.""",
             # 真实工具调用 + 流式输出
             if intent == "diagnosis":
                 # ─── Interview phase: collect info before diagnosis ───
+                diag_agent = DiagnosisAgent(provider=provider)
+
                 # Create a session to persist interview state
                 session_id: str | None = None
                 try:
-                    new_session = await master._create_session(
+                    new_session = await diag_agent._create_session(
                         user_id=uuid.UUID(actual_patient_id) if actual_patient_id else None,
                         session_type=AgentSessionType.DIAGNOSIS,
                         intent="diagnosis",
@@ -504,8 +506,6 @@ Use Markdown formatting for readability.""",
                         session_id = str(new_session.id)
                 except Exception:
                     pass
-
-                diag_agent = DiagnosisAgent(provider=provider)
 
                 if session_id:
                     try:
