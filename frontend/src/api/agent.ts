@@ -185,6 +185,84 @@ export function streamDiagnose(
 }
 
 /**
+ * 续传流式对话 (SSE via POST + fetch ReadableStream)
+ * POST /api/v1/agents/route/stream/continue
+ */
+export function streamDiagnoseContinue(
+  payload: { session_id: string; question_id: string; answer: string },
+  onEvent: (event: SSEEvent) => void
+): Promise<void> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const res = await fetch(`${API_BASE}/agents/route/stream/continue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        reject(new Error(err.detail || `HTTP ${res.status}`));
+        return;
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        reject(new Error('No response body'));
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let currentEvent: SSEEventType = 'text';
+      let currentData = '';
+
+      const flushEvent = () => {
+        if (currentData) {
+          try {
+            const parsed = JSON.parse(currentData);
+            onEvent({ event: currentEvent, data: parsed });
+          } catch {
+            onEvent({ event: currentEvent, data: { raw: currentData } });
+          }
+        }
+        currentEvent = 'text';
+        currentData = '';
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          flushEvent();
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed === '') {
+            flushEvent();
+            continue;
+          }
+          if (trimmed.startsWith('event:')) {
+            currentEvent = trimmed.slice(6).trim() as SSEEventType;
+          } else if (trimmed.startsWith('data:')) {
+            currentData += trimmed.slice(5).trim();
+          }
+        }
+      }
+
+      resolve();
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error(String(e)));
+    }
+  });
+}
+
+/**
  * 获取会话列表
  * GET /api/v1/agents/sessions
  */
@@ -215,6 +293,7 @@ export const agentApi = {
   routeIntent,
   chat,
   streamDiagnose,
+  streamDiagnoseContinue,
   listSessions,
   clearGuestToken,
 };

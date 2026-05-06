@@ -42,6 +42,7 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const didInit = useRef(false);
+  const pendingSessionRef = useRef<{ sessionId: string; questionId: string } | null>(null);
 
   // 初始化：检查认证状态，未登录时自动创建访客 session
   useEffect(() => {
@@ -234,6 +235,51 @@ export default function ChatPage() {
                   return next;
                 });
                 break;
+              case 'question': {
+                const q = event.data as unknown as { question_id: string; question: string; type: 'choice' | 'text'; options?: string[]; hint?: string; allow_skip?: boolean };
+                pendingSessionRef.current = { sessionId: pendingSessionRef.current?.sessionId || '', questionId: q.question_id };
+                setMessages((prev) => {
+                  const idx = prev.findIndex((m) => m.id === agentMsgId);
+                  if (idx === -1) {
+                    return [...prev, {
+                      id: agentMsgId,
+                      role: 'agent',
+                      content: '',
+                      timestamp: new Date(),
+                      isStreaming: true,
+                      workflowSteps: [...workflowSteps],
+                      interviewQuestion: {
+                        question_id: q.question_id,
+                        question: q.question,
+                        type: q.type,
+                        options: q.options,
+                        hint: q.hint,
+                        allow_skip: q.allow_skip,
+                      },
+                    }];
+                  }
+                  const next = prev.slice();
+                  next[idx] = { ...next[idx], isStreaming: true, workflowSteps: [...workflowSteps], interviewQuestion: {
+                    question_id: q.question_id,
+                    question: q.question,
+                    type: q.type,
+                    options: q.options,
+                    hint: q.hint,
+                    allow_skip: q.allow_skip,
+                  } };
+                  return next;
+                });
+                break;
+              }
+              case 'interview_progress': {
+                addStep({
+                  type: 'thinking',
+                  status: 'done',
+                  title: '📋 已收集问诊信息',
+                  detail: Object.entries(event.data?.collected as Record<string, unknown> || {}).map(([k, v]) => `${k}: ${v}`).join(', '),
+                });
+                break;
+              }
               case 'error': {
                 const errorMsg = event.data?.message as string || event.data?.error as string || '服务异常';
                 addStep({
@@ -253,6 +299,15 @@ export default function ChatPage() {
                 break;
               }
               case 'complete': {
+                const status = event.data?.status as string;
+                if (status === 'waiting_for_answer') {
+                  const sid = event.data?.session_id as string;
+                  if (sid && pendingSessionRef.current) {
+                    pendingSessionRef.current.sessionId = sid;
+                  }
+                  // Keep isStreaming=true so InterviewQuestion stays enabled
+                  break;
+                }
                 addStep({
                   type: 'complete',
                   status: 'done',
@@ -266,6 +321,7 @@ export default function ChatPage() {
                   return next;
                 });
                 setIsStreaming(false);
+                pendingSessionRef.current = null;
                 break;
               }
             }
@@ -277,6 +333,207 @@ export default function ChatPage() {
       }
     },
     [isStreaming, currentSessionId]
+  );
+
+  const handleInterviewAnswer = useCallback(
+    async (questionId: string, answer: string) => {
+      const pending = pendingSessionRef.current;
+      if (!pending || !pending.sessionId) return;
+
+      // Disable the previous agent message's interview question
+      setMessages((prev) => {
+        const idx = prev.findLastIndex((m) => m.role === 'agent' && m.interviewQuestion?.question_id === questionId);
+        if (idx === -1) return prev;
+        const next = prev.slice();
+        next[idx] = { ...next[idx], isStreaming: false, interviewQuestion: undefined };
+        return next;
+      });
+
+      // Add user answer as a new message
+      const userAnswerMsg: ChatMessageItem = {
+        id: generateId(),
+        role: 'user',
+        content: answer,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userAnswerMsg]);
+
+      setIsStreaming(true);
+      const agentMsgId = generateId();
+      let content = '';
+      let structured: DiagnosisReport | undefined;
+      const workflowSteps: WorkflowStep[] = [];
+
+      const addStep = (step: Omit<WorkflowStep, 'id' | 'timestamp'>) => {
+        const newStep: WorkflowStep = { ...step, id: generateId(), timestamp: new Date() };
+        workflowSteps.push(newStep);
+        setMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === agentMsgId);
+          if (idx === -1) {
+            return [...prev, { id: agentMsgId, role: 'agent', content: '', timestamp: new Date(), isStreaming: true, workflowSteps: [...workflowSteps] }];
+          }
+          const next = prev.slice();
+          next[idx] = { ...next[idx], workflowSteps: [...workflowSteps] };
+          return next;
+        });
+      };
+
+      try {
+        await agentApi.streamDiagnoseContinue(
+          { session_id: pending.sessionId, question_id: questionId, answer },
+          (event: SSEEvent) => {
+            switch (event.event) {
+              case 'thinking': {
+                addStep({
+                  type: 'thinking',
+                  status: 'done',
+                  title: (event.data?.message as string) || '正在分析...',
+                  detail: (event.data?.detail as string) || '',
+                });
+                break;
+              }
+              case 'tool_call': {
+                const toolName = (event.data?.tool as string) || '未知工具';
+                addStep({
+                  type: 'tool_call',
+                  status: 'done',
+                  title: (event.data?.message as string) || `正在调用 ${toolName}...`,
+                  toolName,
+                  toolParams: (event.data?.params as Record<string, unknown>) || {},
+                });
+                break;
+              }
+              case 'tool_result': {
+                const toolName = (event.data?.tool as string) || '未知工具';
+                addStep({
+                  type: 'tool_result',
+                  status: 'done',
+                  title: (event.data?.message as string) || `${toolName} 执行完成`,
+                  toolName,
+                  toolResult: event.data?.result,
+                });
+                break;
+              }
+              case 'text': {
+                content += (event.data?.text as string) || '';
+                setMessages((prev) => {
+                  const idx = prev.findIndex((m) => m.id === agentMsgId);
+                  if (idx === -1) {
+                    return [...prev, { id: agentMsgId, role: 'agent', content, timestamp: new Date(), isStreaming: true, workflowSteps: [...workflowSteps] }];
+                  }
+                  const next = prev.slice();
+                  next[idx] = { ...next[idx], content, isStreaming: true, workflowSteps: [...workflowSteps] };
+                  return next;
+                });
+                break;
+              }
+              case 'structured':
+                structured = event.data as unknown as DiagnosisReport;
+                setMessages((prev) => {
+                  const idx = prev.findIndex((m) => m.id === agentMsgId);
+                  if (idx === -1) return prev;
+                  const next = prev.slice();
+                  next[idx] = { ...next[idx], structured, content: content || next[idx].content || '已生成诊断报告', workflowSteps: [...workflowSteps] };
+                  return next;
+                });
+                break;
+              case 'question': {
+                const q = event.data as unknown as { question_id: string; question: string; type: 'choice' | 'text'; options?: string[]; hint?: string; allow_skip?: boolean };
+                pendingSessionRef.current = { sessionId: pendingSessionRef.current?.sessionId || '', questionId: q.question_id };
+                setMessages((prev) => {
+                  const idx = prev.findIndex((m) => m.id === agentMsgId);
+                  if (idx === -1) {
+                    return [...prev, {
+                      id: agentMsgId,
+                      role: 'agent',
+                      content: '',
+                      timestamp: new Date(),
+                      isStreaming: true,
+                      workflowSteps: [...workflowSteps],
+                      interviewQuestion: {
+                        question_id: q.question_id,
+                        question: q.question,
+                        type: q.type,
+                        options: q.options,
+                        hint: q.hint,
+                        allow_skip: q.allow_skip,
+                      },
+                    }];
+                  }
+                  const next = prev.slice();
+                  next[idx] = { ...next[idx], isStreaming: true, workflowSteps: [...workflowSteps], interviewQuestion: {
+                    question_id: q.question_id,
+                    question: q.question,
+                    type: q.type,
+                    options: q.options,
+                    hint: q.hint,
+                    allow_skip: q.allow_skip,
+                  } };
+                  return next;
+                });
+                break;
+              }
+              case 'interview_progress': {
+                addStep({
+                  type: 'thinking',
+                  status: 'done',
+                  title: '📋 已收集问诊信息',
+                  detail: Object.entries(event.data?.collected as Record<string, unknown> || {}).map(([k, v]) => `${k}: ${v}`).join(', '),
+                });
+                break;
+              }
+              case 'error': {
+                const errorMsg = (event.data?.message as string) || (event.data?.error as string) || '服务异常';
+                addStep({
+                  type: 'thinking',
+                  status: 'error',
+                  title: `错误: ${errorMsg}`,
+                });
+                setMessages((prev) => {
+                  const idx = prev.findIndex((m) => m.id === agentMsgId);
+                  if (idx === -1) {
+                    return [...prev, { id: agentMsgId, role: 'agent', content: `❌ 错误: ${errorMsg}`, timestamp: new Date(), workflowSteps: [...workflowSteps] }];
+                  }
+                  const next = prev.slice();
+                  next[idx] = { ...next[idx], content: `❌ 错误: ${errorMsg}`, isStreaming: false, workflowSteps: [...workflowSteps] };
+                  return next;
+                });
+                break;
+              }
+              case 'complete': {
+                const status = event.data?.status as string;
+                if (status === 'waiting_for_answer') {
+                  const sid = event.data?.session_id as string;
+                  if (sid && pendingSessionRef.current) {
+                    pendingSessionRef.current.sessionId = sid;
+                  }
+                  break;
+                }
+                addStep({
+                  type: 'complete',
+                  status: 'done',
+                  title: (event.data?.message as string) || '✅ 响应完成',
+                });
+                setMessages((prev) => {
+                  const idx = prev.findIndex((m) => m.id === agentMsgId);
+                  if (idx === -1) return prev;
+                  const next = prev.slice();
+                  next[idx] = { ...next[idx], isStreaming: false, workflowSteps: [...workflowSteps] };
+                  return next;
+                });
+                setIsStreaming(false);
+                pendingSessionRef.current = null;
+                break;
+              }
+            }
+          }
+        );
+      } catch {
+        setMessages((prev) => [...prev, { id: generateId(), role: 'agent', content: `❌ 续传失败，请检查网络后重试`, timestamp: new Date() }]);
+        setIsStreaming(false);
+      }
+    },
+    []
   );
 
   return (
@@ -326,7 +583,7 @@ export default function ChatPage() {
           }}
         >
           {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} />
+            <ChatMessage key={msg.id} message={msg} onInterviewAnswer={handleInterviewAnswer} />
           ))}
           <div ref={messagesEndRef} />
         </Box>

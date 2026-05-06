@@ -6,13 +6,14 @@ import remarkGfm from 'remark-gfm';
 import type { ChatMessageItem } from '../types/agent';
 import DiagnosisCard from './DiagnosisCard';
 import AgentWorkflow from './AgentWorkflow';
+import InterviewQuestion from './InterviewQuestion';
 
-interface Props { message: ChatMessageItem; }
+interface Props { message: ChatMessageItem; onInterviewAnswer?: (questionId: string, answer: string) => void; }
 
 const warmPrimary = '#E8956A';
 const warmText = '#5C4033';
 
-export default function ChatMessage({ message }: Props) {
+export default function ChatMessage({ message, onInterviewAnswer }: Props) {
   const isAgent = message.role === 'agent';
   const isSystem = message.role === 'system';
 
@@ -43,6 +44,14 @@ export default function ChatMessage({ message }: Props) {
           background: isAgent ? '#F5E6D3' : 'background.paper',
           border: isAgent ? 'none' : '1px solid #F5E6D3',
         }}>
+          {isAgent && message.interviewQuestion && onInterviewAnswer && (
+            <InterviewQuestion
+              question={message.interviewQuestion}
+              onAnswer={onInterviewAnswer}
+              disabled={!message.isStreaming}
+            />
+          )}
+
           <Box sx={{ color: 'text.primary', wordBreak: 'break-word', lineHeight: 1.6, whiteSpace: 'pre-wrap', '& > *:first-of-type': { mt: 0 }, '& > *:last-of-type': { mb: 0 } }}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}

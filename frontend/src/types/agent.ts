@@ -12,6 +12,8 @@ export type SSEEventType =
   | 'tool_result'
   | 'structured'
   | 'text'
+  | 'question'
+  | 'interview_progress'
   | 'error'
   | 'complete';
 
@@ -53,6 +55,16 @@ export interface DiagnosisReport {
   referral_reason?: string;
 }
 
+/** 问诊问题 */
+export interface InterviewQuestion {
+  question_id: string;
+  question: string;
+  type: 'choice' | 'text';
+  options?: string[];
+  hint?: string;
+  allow_skip?: boolean;
+}
+
 /** 用户消息 */
 export interface ChatMessageItem {
   id: string;
@@ -65,6 +77,7 @@ export interface ChatMessageItem {
     result?: unknown;
   }>;
   workflowSteps?: WorkflowStep[];
+  interviewQuestion?: InterviewQuestion;
   timestamp: Date;
   isStreaming?: boolean;
 }
