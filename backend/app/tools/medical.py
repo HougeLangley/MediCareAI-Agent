@@ -82,18 +82,75 @@ class SearchMedicalKnowledgeTool(Tool):
     async def execute(self, query: str, doc_type: str | None = None, top_k: int = 5) -> dict[str, Any]:
         # Deferred import to avoid circular deps at module load time
         from app.services.rag import RAGService
+        from app.services.external_search import ExternalSearchAgent
         from sqlalchemy.ext.asyncio import AsyncSession
         from app.db.session import async_session_maker
 
         async with async_session_maker() as db:
+            # 1. Search internal knowledge base
             rag = RAGService(db)
             from app.models.rag import DocType
             dt = DocType(doc_type) if doc_type else None
-            result = await rag.query(query=query, doc_type=dt, top_k=top_k)
+            rag_result = await rag.query(query=query, doc_type=dt, top_k=top_k)
+
+            # 2. Search external SearXNG for real-time medical knowledge
+            external = await ExternalSearchAgent.from_config(db)
+            external_results = await external.search_guidelines(query, lang="zh-CN")
+            # Also do a general search for broader coverage
+            general_raw = await external._searxng_search(query, lang="zh-CN")
+            general_results = external._filter_trusted(general_raw)
+
+            # Combine external results
+            all_external = external_results + general_results
+            # Deduplicate by URL
+            seen_urls = set()
+            unique_external = []
+            for r in all_external:
+                if r.url not in seen_urls:
+                    seen_urls.add(r.url)
+                    unique_external.append(r)
+
+            # Format external results for LLM consumption
+            external_chunks = [
+                {
+                    "document_title": r.title or "External Source",
+                    "content": f"{r.snippet}\nURL: {r.url}",
+                    "document_type": "external_search",
+                    "relevance": r.trust_score / 100.0,
+                    "is_trusted": r.is_trusted,
+                }
+                for r in unique_external[:top_k]
+            ]
+
+            # Merge internal + external sources
+            combined_sources = rag_result.get("sources", []) + [
+                {"title": c["document_title"], "type": c["document_type"], "relevance": c.get("relevance", 0.5)}
+                for c in external_chunks
+            ]
+
+            # Build combined answer
+            internal_answer = rag_result.get("answer", "")
+            if external_chunks:
+                external_summary = "\n\n".join(
+                    f"[来源: {c['document_title']}]\n{c['content']}"
+                    for c in external_chunks
+                )
+                if internal_answer and "未找到" not in internal_answer:
+                    combined_answer = (
+                        f"{internal_answer}\n\n---\n\n"
+                        f"其他参考资料（来自实时搜索）：\n{external_summary}"
+                    )
+                else:
+                    combined_answer = external_summary
+            else:
+                combined_answer = internal_answer
+
             return {
-                "answer": result["answer"],
-                "sources": result["sources"],
-                "retrieved_chunks": result["retrieved_chunks"],
+                "answer": combined_answer,
+                "sources": combined_sources,
+                "retrieved_chunks": rag_result.get("retrieved_chunks", 0) + len(external_chunks),
+                "internal_sources": len(rag_result.get("sources", [])),
+                "external_sources": len(external_chunks),
             }
 
 

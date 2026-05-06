@@ -39,20 +39,43 @@ from app.tools.registry import GLOBAL_REGISTRY
 class DiagnosisReport(BaseModel):
     """Structured diagnosis report — PROPOSAL §5.2."""
 
-    primary_diagnosis: str = Field(..., description="Most likely diagnosis")
-    differential_diagnoses: list[str] = Field(default_factory=list)
-    confidence: str = Field(..., pattern="^(high|medium|low)$")
-    severity: str = Field(..., pattern="^(mild|moderate|severe|emergency)$")
-    key_findings: list[str] = Field(default_factory=list)
-    recommended_tests: list[str] = Field(default_factory=list)
-    recommended_actions: list[str] = Field(default_factory=list)
-    contraindications: list[str] = Field(default_factory=list)
-    follow_up_required: bool = Field(default=False)
-    follow_up_timeline: str = Field(default="")
-    red_flags: list[str] = Field(default_factory=list)
-    knowledge_sources: list[str] = Field(default_factory=list)
+    primary_diagnosis: str = Field(..., description="Most likely diagnosis based on symptoms and context")
+    differential_diagnoses: list[str] = Field(
+        default_factory=list,
+        description="List of alternative diagnoses that should be considered and ruled out. "
+                    "Always include 2-5 plausible alternatives with brief reasoning.",
+    )
+    confidence: str = Field(..., pattern="^(high|medium|low)$", description="Confidence level in the primary diagnosis")
+    severity: str = Field(..., pattern="^(mild|moderate|severe|emergency)$", description="Severity assessment of the condition")
+    key_findings: list[str] = Field(
+        default_factory=list,
+        description="Key clinical findings that support or refute the diagnosis",
+    )
+    recommended_tests: list[str] = Field(
+        default_factory=list,
+        description="Recommended laboratory, imaging, or other diagnostic tests",
+    )
+    recommended_actions: list[str] = Field(
+        default_factory=list,
+        description="Immediate actions the patient should take (e.g., rest, hydration, seek care)",
+    )
+    contraindications: list[str] = Field(
+        default_factory=list,
+        description="Any treatments or medications that should be avoided given the patient's condition",
+    )
+    follow_up_required: bool = Field(default=False, description="Whether follow-up care is needed")
+    follow_up_timeline: str = Field(default="", description="Recommended timeline for follow-up (e.g., '3 days', '1 week')")
+    red_flags: list[str] = Field(
+        default_factory=list,
+        description="Warning signs that require immediate medical attention",
+    )
+    knowledge_sources: list[str] = Field(
+        default_factory=list,
+        description="Sources of medical knowledge used (e.g., clinical guidelines, research papers)",
+    )
     disclaimer: str = Field(
-        default="本报告由 AI 生成，仅供参考，不能替代专业医疗诊断。"
+        default="本报告由 AI 生成，仅供参考，不能替代专业医疗诊断。",
+        description="Standard medical disclaimer",
     )
 
 
