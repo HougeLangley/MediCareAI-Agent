@@ -509,7 +509,10 @@ Use Markdown formatting for readability.""",
 
                 if session_id:
                     try:
-                        next_q, state = await diag_agent.interview(session_id=session_id)
+                        next_q, state = await diag_agent.interview(
+                            session_id=session_id,
+                            chief_complaint=message,
+                        )
                         if next_q:
                             # Send progress summary
                             yield f"event: interview_progress\ndata: {json.dumps({'collected': state.collected_info, 'asked_count': len(state.asked_questions)})}\n\n"

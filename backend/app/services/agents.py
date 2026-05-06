@@ -24,10 +24,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import async_session_maker
 from app.models.agent import AgentSession, AgentSessionStatus, AgentSessionType, AgentTask
 from app.models.interview import (
+    DynamicInterviewEngine,
     InterviewState,
     QuestionTemplate,
-    get_next_question,
-    is_interview_sufficient,
 )
 from app.services.llm import LLMResponse, LLMService
 from app.tools.registry import GLOBAL_REGISTRY
@@ -373,8 +372,9 @@ SAFETY:
         self,
         session_id: str,
         collected_info: dict[str, Any] | None = None,
+        chief_complaint: str = "",
     ) -> tuple[QuestionTemplate | None, InterviewState]:
-        """Determine the next interview question based on collected info.
+        """Determine the next interview question using LLM-driven dynamic engine.
 
         Returns:
             (next_question, updated_state) — next_question is None if interview is complete.
@@ -391,6 +391,10 @@ SAFETY:
                 if interview_data:
                     state = InterviewState.from_dict(interview_data)
 
+        # Set chief complaint on first call
+        if chief_complaint and not state.chief_complaint:
+            state.chief_complaint = chief_complaint
+
         # Merge newly provided info
         if collected_info:
             state.collected_info.update(collected_info)
@@ -398,22 +402,17 @@ SAFETY:
                 if key not in state.asked_questions:
                     state.asked_questions.append(key)
 
-        # Check if we have enough info
-        if is_interview_sufficient(state):
+        # If already sufficient, skip
+        if state.is_sufficient or len(state.asked_questions) >= state.max_questions:
             state.is_sufficient = True
             state.current_question_id = None
             await self._update_interview_state(session_id, state)
             return None, state
 
-        # Get next question
-        next_q = get_next_question(state)
-        if next_q is None:
-            state.is_sufficient = True
-            state.current_question_id = None
-            await self._update_interview_state(session_id, state)
-            return None, state
-
-        state.current_question_id = next_q.question_id
+        # Use LLM to decide next question
+        llm = LLMService(provider=self.provider)
+        engine = DynamicInterviewEngine(llm)
+        next_q, state = await engine.decide_next(state)
         await self._update_interview_state(session_id, state)
         return next_q, state
 
@@ -422,16 +421,22 @@ SAFETY:
         session_id: str,
         state: InterviewState,
     ) -> None:
-        """Persist interview state into AgentSession.context."""
+        """Persist interview state into AgentSession.context.
+
+        CRITICAL: JSONB fields don't detect sub-key mutations in SQLAlchemy.
+        We must re-assign the entire dict to trigger change detection.
+        """
         async with async_session_maker() as db:
             from sqlalchemy import select
             stmt = select(AgentSession).where(AgentSession.id == uuid.UUID(session_id))
             result = await db.execute(stmt)
             session = result.scalar_one_or_none()
             if session:
-                if session.context is None:
-                    session.context = {}
-                session.context["interview"] = state.to_dict()
+                # Re-assign entire context dict to trigger SQLAlchemy change detection
+                session.context = {
+                    **(session.context or {}),
+                    "interview": state.to_dict(),
+                }
                 session.updated_at = datetime.now(timezone.utc)
                 await db.commit()
 

@@ -46,6 +46,7 @@ export default function ChatMessage({ message, onInterviewAnswer }: Props) {
         }}>
           {isAgent && message.interviewQuestion && onInterviewAnswer && (
             <InterviewQuestion
+              key={message.interviewQuestion.question_id}
               question={message.interviewQuestion}
               onAnswer={onInterviewAnswer}
               disabled={!message.isStreaming}
