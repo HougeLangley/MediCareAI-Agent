@@ -67,6 +67,8 @@ async def _ensure_default_admin() -> None:
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     await _ensure_default_admin()
+    from app.tasks.monitoring import ensure_default_templates
+    await ensure_default_templates()
     yield
 
 

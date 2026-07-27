@@ -1066,6 +1066,7 @@ Output a JSON object with:
 
             # Create monitoring events from tasks
             events_created = 0
+            created_events = []
             tasks = plan_data.get("tasks", [])
             from datetime import timedelta
             for task in tasks:
@@ -1077,8 +1078,19 @@ Output a JSON object with:
                         payload=task, scheduled_at=scheduled,
                     )
                     db.add(evt)
+                    created_events.append(evt)
                     events_created += 1
             await db.commit()
+
+            # ETA precise scheduling: one Celery task per event, fired at
+            # scheduled_at. Enqueue failure is non-fatal — the periodic
+            # sweep (scan_pending_events) covers any missed event.
+            from app.tasks.monitoring import send_reminder
+            for evt in created_events:
+                try:
+                    send_reminder.apply_async((str(evt.id),), eta=evt.scheduled_at)
+                except Exception as exc:
+                    logger.warning(f"[PLANNING] ETA enqueue failed for event {evt.id}: {exc}")
 
             return {
                 "plan_id": str(plan.id),

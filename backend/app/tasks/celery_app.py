@@ -33,12 +33,17 @@ celery_app.conf.update(
     task_time_limit=300,
     worker_prefetch_multiplier=1,
     task_always_eager=settings.celery_task_always_eager,
+    # Long-ETA reminders (medication plans span weeks) must not be
+    # redelivered by the broker while held in the worker's ETA heap.
+    broker_transport_options={"visibility_timeout": 2592000},
     beat_schedule={
         "cleanup-audit-logs-daily": {
             "task": "app.tasks.audit.cleanup_old_audit_logs",
             "schedule": crontab(hour=3, minute=0),
             "kwargs": {},
         },
+        # Fallback sweep: ETA tasks (send_reminder) fire at exact times;
+        # this catches events missed by worker restarts or enqueue failures.
         "scan-pending-events": {
             "task": "app.tasks.monitoring.scan_pending_events",
             "schedule": crontab(minute="*/30"),
