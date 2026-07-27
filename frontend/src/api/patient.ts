@@ -87,3 +87,17 @@ export async function getReminderCount(): Promise<{ follow_up: number; medicatio
   if (!res.ok) throw new Error('Failed to fetch reminder count');
   return res.json();
 }
+
+export async function listReminders(): Promise<unknown[]> {
+  const res = await fetch(`${API_BASE}/patient/reminders`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch reminders');
+  return res.json();
+}
+
+export async function acknowledgeReminder(reminderId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/patient/reminders/${reminderId}/ack`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to acknowledge reminder');
+}
