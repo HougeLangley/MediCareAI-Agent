@@ -12,6 +12,15 @@ WORKDIR /app
 ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
 
+# Debian apt mirror — same rationale; deb.debian.org is also unreliable
+# from the VPS. Override with --build-arg APT_MIRROR=... outside CN.
+ARG APT_MIRROR=mirrors.aliyun.com
+RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources; \
+    elif [ -f /etc/apt/sources.list ]; then \
+      sed -i "s|deb.debian.org|${APT_MIRROR}|g; s|security.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list; \
+    fi
+
 # Install build deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
@@ -41,6 +50,13 @@ RUN rm -rf /app/app
 FROM python:3.12-slim AS production
 
 WORKDIR /app
+
+ARG APT_MIRROR=mirrors.aliyun.com
+RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources; \
+    elif [ -f /etc/apt/sources.list ]; then \
+      sed -i "s|deb.debian.org|${APT_MIRROR}|g; s|security.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list; \
+    fi
 
 # Runtime deps only
 RUN apt-get update && apt-get install -y --no-install-recommends \
