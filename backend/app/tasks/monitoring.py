@@ -10,28 +10,21 @@ Delivery guarantees:
   harmless no-ops.
 - 'in_flight' rows older than IN_FLIGHT_STALE_MINUTES are reclaimed
   by the sweeper, so a crashed worker never loses a reminder.
+- Each task run uses a fresh async engine: asyncpg connections are
+  loop-bound and every task runs its own asyncio.run() loop.
 """
 import logging
 from datetime import datetime, timedelta, timezone
 
 from celery import shared_task
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.db.session import async_engine, async_session_maker
+from app.core.config import get_settings
+from app.db.session import async_session_maker
 from app.services.email_service import email_service
 
 _log = logging.getLogger("heartbeat")
-
-
-async def _reset_db_pool() -> None:
-    """Drop pooled connections bound to previous asyncio.run() loops.
-
-    Each Celery task runs in a fresh event loop; asyncpg connections are
-    loop-bound, so reusing a pooled connection from an earlier task run
-    raises "Future attached to a different loop". Disposing forces fresh
-    connections on the current loop.
-    """
-    await async_engine.dispose()
 
 # How long an 'in_flight' event may stay unclaimed before the sweeper
 # resets it to 'pending' (covers worker crashes between claim and send).
@@ -98,7 +91,16 @@ DEFAULT_REMINDER_TEMPLATES = [
 ]
 
 
-async def ensure_default_templates() -> None:
+def _new_session_factory():
+    """Fresh engine + session factory bound to the caller's event loop."""
+    engine = create_async_engine(get_settings().async_database_url)
+    factory = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
+    )
+    return engine, factory
+
+
+async def ensure_default_templates(session_factory=None) -> None:
     """Idempotently create the default reminder email templates.
 
     Runs at backend startup (and lazily inside the sweeper) so templates
@@ -107,7 +109,8 @@ async def ensure_default_templates() -> None:
     """
     from app.models.email import EmailTemplate
 
-    async with async_session_maker() as db:
+    factory = session_factory or async_session_maker
+    async with factory() as db:
         created = 0
         for tpl in DEFAULT_REMINDER_TEMPLATES:
             result = await db.execute(
@@ -198,7 +201,7 @@ async def _send_reminder_email(db, evt) -> None:
         )
 
 
-async def _claim_and_send(event_id: str) -> str:
+async def _claim_and_send(event_id: str, session_factory=None) -> str:
     """Atomically claim one pending event and send its reminder.
 
     Returns: 'sent' | 'failed' | 'busy' | 'skipped'.
@@ -207,7 +210,8 @@ async def _claim_and_send(event_id: str) -> str:
     """
     from app.models.agent import MonitoringEvent
 
-    async with async_session_maker() as db:
+    factory = session_factory or async_session_maker
+    async with factory() as db:
         now = datetime.now(timezone.utc)
 
         # Atomic claim — only one caller can flip pending -> in_flight.
@@ -256,8 +260,11 @@ def send_reminder(event_id: str) -> dict:
     import asyncio
 
     async def _amain():
-        await _reset_db_pool()
-        return await _claim_and_send(event_id)
+        engine, factory = _new_session_factory()
+        try:
+            return await _claim_and_send(event_id, factory)
+        finally:
+            await engine.dispose()
 
     outcome = asyncio.run(_amain())
     _log.info(f"[HEARTBEAT-ETA] event={event_id} outcome={outcome}")
@@ -280,42 +287,45 @@ def scan_pending_events() -> dict:
     async def _run():
         from app.models.agent import MonitoringEvent
 
-        await _reset_db_pool()
-        await ensure_default_templates()
+        engine, factory = _new_session_factory()
+        try:
+            await ensure_default_templates(factory)
 
-        async with async_session_maker() as db:
-            now = datetime.now(timezone.utc)
-            stale_before = now - timedelta(minutes=IN_FLIGHT_STALE_MINUTES)
+            async with factory() as db:
+                now = datetime.now(timezone.utc)
+                stale_before = now - timedelta(minutes=IN_FLIGHT_STALE_MINUTES)
 
-            # Reclaim events stuck in_flight after a worker crash.
-            await db.execute(
-                update(MonitoringEvent)
-                .where(
-                    MonitoringEvent.status == "in_flight",
-                    MonitoringEvent.triggered_at < stale_before,
+                # Reclaim events stuck in_flight after a worker crash.
+                await db.execute(
+                    update(MonitoringEvent)
+                    .where(
+                        MonitoringEvent.status == "in_flight",
+                        MonitoringEvent.triggered_at < stale_before,
+                    )
+                    .values(status="pending")
                 )
-                .values(status="pending")
+                await db.commit()
+
+                result = await db.execute(
+                    select(MonitoringEvent.id).where(
+                        MonitoringEvent.status == "pending",
+                        MonitoringEvent.scheduled_at <= now,
+                        MonitoringEvent.retry_count < 3,
+                    ).limit(50)
+                )
+                event_ids = [str(eid) for eid in result.scalars().all()]
+
+            outcomes = {"sent": 0, "failed": 0, "busy": 0, "skipped": 0}
+            for eid in event_ids:
+                outcome = await _claim_and_send(eid, factory)
+                outcomes[outcome] += 1
+
+            _log.info(
+                f"[HEARTBEAT] sent={outcomes['sent']} failed={outcomes['failed']} "
+                f"busy={outcomes['busy']} skipped={outcomes['skipped']}"
             )
-            await db.commit()
-
-            result = await db.execute(
-                select(MonitoringEvent.id).where(
-                    MonitoringEvent.status == "pending",
-                    MonitoringEvent.scheduled_at <= now,
-                    MonitoringEvent.retry_count < 3,
-                ).limit(50)
-            )
-            event_ids = [str(eid) for eid in result.scalars().all()]
-
-        outcomes = {"sent": 0, "failed": 0, "busy": 0, "skipped": 0}
-        for eid in event_ids:
-            outcome = await _claim_and_send(eid)
-            outcomes[outcome] += 1
-
-        _log.info(
-            f"[HEARTBEAT] sent={outcomes['sent']} failed={outcomes['failed']} "
-            f"busy={outcomes['busy']} skipped={outcomes['skipped']}"
-        )
-        return outcomes
+            return outcomes
+        finally:
+            await engine.dispose()
 
     return asyncio.run(_run())
