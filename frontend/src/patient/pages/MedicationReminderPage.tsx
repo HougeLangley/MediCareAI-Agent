@@ -5,7 +5,7 @@ import {
   Button, Chip, Stack, CircularProgress, LinearProgress, linearProgressClasses,
 } from '@mui/material';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { listReminders, acknowledgeReminder } from '../../api/patient';
 import { authHeaders } from '../../api/client';
