@@ -7,6 +7,11 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
+# PyPI index — default to Aliyun mirror (VPS is on Alibaba Cloud where
+# direct pypi.org access is unreliable); override with --build-arg.
+ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+ENV PIP_INDEX_URL=${PIP_INDEX_URL}
+
 # Install build deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
