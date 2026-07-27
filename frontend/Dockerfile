@@ -1,9 +1,12 @@
 # Build stage
 FROM node:22-alpine AS builder
 
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+RUN npm config set registry ${NPM_REGISTRY}
+
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY . .
 RUN rm -rf node_modules/.vite dist .vite
