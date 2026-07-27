@@ -70,7 +70,7 @@ export default function AdminLayout() {
       // 无 token 时初始状态已正确，无需同步 setState
       return;
     }
-    // 异步验证 token
+    // 仅在 mount 时验证一次 token；后续 API 调用由后端 401 兜底
     getMe()
       .then((user) => {
         setAuthState({
@@ -81,11 +81,18 @@ export default function AdminLayout() {
             localStorage.getItem('password_change_required') === 'true',
         });
       })
-      .catch(() => {
-        logout();
-        setAuthState({ checked: true, authenticated: false, needPasswordChange: false });
+      .catch((err: unknown) => {
+        // 仅 401 才登出；网络 / 超时不处理，后端会在后续 API 调用时校验
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('401') || msg.includes('Unauthorized')) {
+          logout();
+          setAuthState({ checked: true, authenticated: false, needPasswordChange: false });
+        } else {
+          // 网络波动等：保留当前状态，不强制登出
+          setAuthState({ checked: true, authenticated: true, needPasswordChange: false });
+        }
       });
-  }, [location.pathname]);
+  }, []);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 

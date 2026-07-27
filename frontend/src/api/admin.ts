@@ -147,6 +147,7 @@ export async function adminLogin(email: string, password: string): Promise<{
   const json = await res.json();
   if (!res.ok) throw new Error(json.detail || json.message || 'Login failed');
   localStorage.setItem('access_token', json.access_token);
+  localStorage.setItem('user_role', 'admin');
   if (json.password_change_required) {
     localStorage.setItem('password_change_required', 'true');
   } else {
@@ -183,6 +184,8 @@ export async function getMe(): Promise<{
 
 export function logout(): void {
   localStorage.removeItem('access_token');
+  localStorage.removeItem('user_role');
+  localStorage.removeItem('password_change_required');
 }
 
 export function isLoggedIn(): boolean {
