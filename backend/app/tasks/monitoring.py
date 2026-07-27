@@ -17,10 +17,21 @@ from datetime import datetime, timedelta, timezone
 from celery import shared_task
 from sqlalchemy import select, update
 
-from app.db.session import async_session_maker
+from app.db.session import async_engine, async_session_maker
 from app.services.email_service import email_service
 
 _log = logging.getLogger("heartbeat")
+
+
+async def _reset_db_pool() -> None:
+    """Drop pooled connections bound to previous asyncio.run() loops.
+
+    Each Celery task runs in a fresh event loop; asyncpg connections are
+    loop-bound, so reusing a pooled connection from an earlier task run
+    raises "Future attached to a different loop". Disposing forces fresh
+    connections on the current loop.
+    """
+    await async_engine.dispose()
 
 # How long an 'in_flight' event may stay unclaimed before the sweeper
 # resets it to 'pending' (covers worker crashes between claim and send).
@@ -244,7 +255,11 @@ def send_reminder(event_id: str) -> dict:
     """
     import asyncio
 
-    outcome = asyncio.run(_claim_and_send(event_id))
+    async def _amain():
+        await _reset_db_pool()
+        return await _claim_and_send(event_id)
+
+    outcome = asyncio.run(_amain())
     _log.info(f"[HEARTBEAT-ETA] event={event_id} outcome={outcome}")
     return {"event_id": event_id, "outcome": outcome}
 
@@ -265,6 +280,7 @@ def scan_pending_events() -> dict:
     async def _run():
         from app.models.agent import MonitoringEvent
 
+        await _reset_db_pool()
         await ensure_default_templates()
 
         async with async_session_maker() as db:
